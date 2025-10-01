@@ -1,0 +1,2589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vexfore CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* App styles */
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); width: 16rem; transition: transform 0.3s ease-in-out; }
+            .sidebar.open { transform: translateX(0); }
+        }
+        
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; transform: translateY(-20px); opacity: 0; }
+        .modal-backdrop.open { opacity: 1; }
+        .modal-backdrop.open .modal-content { transform: translateY(0); opacity: 1;}
+        
+        .kanban-column { min-height: 400px; }
+        .kanban-card { cursor: grab; }
+        .kanban-card:active { cursor: grabbing; }
+        
+        .kanban-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 1.5rem; /* Corresponds to gap-6 */
+            padding-bottom: 1rem; /* Space for scrollbar */
+        }
+
+        .kanban-stage {
+            flex: 0 0 280px; /* Prevent shrinking, set a base width */
+            background-color: #e2e8f0; /* bg-slate-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 1rem; /* p-4 */
+        }
+        
+        /* Blinking Alert Animation */
+        .blinking-alert::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444; /* red-500 */
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+
+        /* Print styles for invoices */
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-print-area, #invoice-print-area * { visibility: visible; }
+            #invoice-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside id="sidebar" class="sidebar bg-slate-800 text-white w-64 flex flex-col absolute inset-y-0 left-0 md:relative md:translate-x-0 z-30 shadow-lg">
+        <div class="flex items-center justify-between px-4 h-16 border-b border-slate-700 flex-shrink-0">
+            <div id="sidebar-header-text" class="flex items-center overflow-hidden">
+                <i data-lucide="shield-half" class="mr-2 text-indigo-400 flex-shrink-0"></i>
+                <h2 id="app-name-sidebar" class="text-xl font-bold whitespace-normal break-words">Admin CRM</h2>
+            </div>
+        </div>
+        <nav class="flex-grow overflow-y-auto overflow-x-hidden py-4">
+            <a href="#dashboard" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="layout-dashboard" class="mr-3"></i><span class="nav-text whitespace-nowrap">Dashboard</span></a>
+            <a href="#services" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="briefcase" class="mr-3"></i><span class="nav-text whitespace-nowrap">Services</span></a>
+            <a href="#employees" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="users" class="mr-3"></i><span class="nav-text whitespace-nowrap">Employees</span></a>
+            <a href="#leads" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="filter" class="mr-3"></i><span class="nav-text whitespace-nowrap">Leads</span></a>
+            <a href="#customers" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="contact" class="mr-3"></i><span class="nav-text whitespace-nowrap">Customers</span></a>
+            <a href="#payouts" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="dollar-sign" class="mr-3"></i><span class="nav-text whitespace-nowrap">Payouts & Profit</span></a>
+            <a id="subscriptions-nav-link" href="#subscriptions" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="calendar-clock" class="mr-3"></i><span class="nav-text whitespace-nowrap">Subscriptions</span></a>
+            <a href="#invoices" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="file-text" class="mr-3"></i><span class="nav-text whitespace-nowrap">Invoices/Quotes</span></a>
+            <a href="#expenses" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="receipt" class="mr-3"></i><span class="nav-text whitespace-nowrap">Expenses</span></a>
+            <a id="tasks-nav-link" href="#tasks" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="check-square" class="mr-3"></i><span class="nav-text whitespace-nowrap">Tasks & Goals</span></a>
+            <a href="#appointments" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="calendar-plus" class="mr-3"></i><span class="nav-text whitespace-nowrap">Appointments</span></a>
+        </nav>
+        <div class="border-t border-slate-700 flex-shrink-0">
+             <a href="#settings" class="nav-link flex items-center py-2.5 px-4 rounded transition duration-200 hover:bg-slate-700"><i data-lucide="settings" class="mr-3"></i><span class="nav-text whitespace-nowrap">Settings</span></a>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-md p-4 flex justify-between items-center h-16">
+            <div class="flex items-center">
+                 <button id="menu-toggle-mobile" class="md:hidden text-slate-600 mr-4">
+                     <i data-lucide="menu"></i>
+                 </button>
+                <h1 id="page-title" class="text-2xl font-semibold text-slate-800">Dashboard</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <button id="notification-btn" class="relative text-slate-600 hover:text-slate-800">
+                        <i data-lucide="bell"></i>
+                        <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center hidden"></span>
+                    </button>
+                    <div id="notification-panel" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border hidden z-10">
+                        <div class="p-3 border-b font-semibold text-sm flex justify-between items-center">
+                            <span>Notifications</span>
+                            <button id="mark-all-read-btn" class="text-xs text-blue-600 hover:underline">Mark all as read</button>
+                        </div>
+                        <div id="notification-list" class="max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+                <div id="live-clock" class="text-sm text-slate-500 text-right hidden md:block"></div>
+                 <div class="text-sm text-slate-500 text-right hidden sm:block">
+                     <div>Admin User</div>
+                 </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 p-6">
+        </main>
+
+        <footer class="bg-white text-center text-sm text-slate-500 p-3 border-t">
+            Powered by First Step Digital Agency. All rights reserved.
+        </footer>
+    </div>
+
+    <div id="modal-container" class="hidden"></div>
+    
+    <div id="toast-notification" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-4 transition-all duration-300">
+        <span id="toast-message"></span>
+    </div>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-800 bg-opacity-75 z-50 flex items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div>
+    </div>
+
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, writeBatch, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- App Configuration & State ---
+        const appState = {
+            currentView: 'dashboard',
+            leadsView: 'kanban', // 'kanban', 'table', 'cards'
+            filters: {},
+            settings: {
+                appName: 'Admin CRM',
+                companyAddress: 'Your Company Address\n123 Business Rd.\nBusinesstown, 12345',
+                leadStages: ['New', 'Hot', 'Cold', 'Contacted', 'Qualified'],
+                taskStatuses: ['To Do', 'In Progress', 'Done'],
+                whatsappApiUrl: '',
+                whatsappApiKey: '',
+                renewalMessageTemplate: 'Hi {{customerName}}, your {{subscriptionName}} subscription is ending on {{endDate}}. Please contact us to renew.'
+            },
+            data: {
+                services: [], employees: [], leads: [], customers: [],
+                subscriptions: [], invoices: [], expenses: [], notifications: [], tasks: [], appointments: []
+            },
+            listeners: {},
+            userId: null, db: null,
+        };
+        
+        // --- Firebase Initialization ---
+        const appId = 'vexfore-crm'; // Using your projectId as the unique app ID
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyBM23Q1vXzOxO8zrPCoHOEFSu4bB5zQyjo",
+          authDomain: "vexfore-crm.firebaseapp.com",
+          projectId: "vexfore-crm",
+          storageBucket: "vexfore-crm.firebasestorage.app",
+          messagingSenderId: "733421939557",
+          appId: "1:733421939557:web:bf07a1903bbc9d704e4f8c",
+          measurementId: "G-SKD7Q7PNDG"
+        };
+
+        async function initializeFirebase() {
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+                console.error("Firebase config is missing or invalid.");
+                showToast("Error: Firebase config missing. Database features are disabled.", true);
+                return;
+            }
+            const app = initializeApp(firebaseConfig);
+            appState.db = getFirestore(app);
+            const auth = getAuth(app);
+            
+            try {
+                // Prioritize custom token if available and valid
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    console.log("Attempting to sign in with custom token.");
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    // Otherwise, sign in anonymously
+                    console.log("No custom token found, signing in anonymously.");
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                // If custom token fails for ANY reason, log it and fall back to anonymous.
+                console.warn("Custom token sign-in failed with error:", error);
+                console.log("Falling back to anonymous sign-in.");
+                try {
+                    await signInAnonymously(auth);
+                } catch (anonError) {
+                    console.error("Critical: Anonymous sign-in also failed:", anonError);
+                    showToast("Authentication failed completely. App may not work.", true);
+                }
+            }
+
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    appState.userId = user.uid;
+                    console.log(`User authenticated. UID: ${appState.userId}, Is Anonymous: ${user.isAnonymous}`);
+                    loadSettingsAndData();
+                } else {
+                    appState.userId = null;
+                    console.error("Authentication state changed to signed-out. Data will not be loaded.");
+                }
+            });
+        }
+        
+        // --- Utility Functions ---
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => document.querySelectorAll(selector);
+        
+        function showLoader() { $('#loading-overlay').classList.remove('hidden'); }
+        function hideLoader() { $('#loading-overlay').classList.add('hidden'); }
+        
+        function showToast(message, isError = false) {
+            const toast = $('#toast-notification');
+            $('#toast-message').textContent = message;
+            toast.classList.remove('bg-green-500', 'bg-red-500', 'opacity-0', 'translate-y-4');
+            toast.classList.add(isError ? 'bg-red-500' : 'bg-green-500', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'translate-y-4');
+            }, 3000);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-IN', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                timeZone: 'Asia/Kolkata'
+            });
+        }
+
+        function formatDateTime(dateTimeString) {
+            if (!dateTimeString) return 'N/A';
+            const date = new Date(dateTimeString);
+            return date.toLocaleString('en-IN', {
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit', hour12: true,
+                timeZone: 'Asia/Kolkata'
+            });
+        }
+        
+        function updateLiveClock() {
+            const clockElement = $('#live-clock');
+            if (!clockElement) return;
+
+            setInterval(() => {
+                const now = new Date();
+                const options = {
+                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+                    timeZone: 'Asia/Kolkata', timeZoneName: 'short'
+                };
+                clockElement.textContent = new Intl.DateTimeFormat('en-IN', options).format(now);
+            }, 1000);
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
+        }
+
+        // --- Modal Management ---
+        function openModal(title, content, formId, onSubmit) {
+            const modalHTML = `
+                <div id="app-modal" class="modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-4 open opacity-0">
+                    <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                        <div class="flex justify-between items-center p-4 border-b">
+                            <h3 class="text-xl font-semibold text-slate-700">${title}</h3>
+                            <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800 p-2 rounded-full leading-none">&times;</button>
+                        </div>
+                        <div class="p-6 overflow-y-auto">
+                            <form id="${formId}">${content}</form>
+                        </div>
+                         <div class="flex justify-end items-center p-4 border-t bg-slate-50 rounded-b-lg">
+                             <button type="button" id="cancel-modal-btn" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-md mr-2 hover:bg-slate-300">Cancel</button>
+                             <button type="submit" form="${formId}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center">Save</button>
+                         </div>
+                    </div>
+                </div>`;
+            const modalContainer = $('#modal-container');
+            modalContainer.innerHTML = modalHTML;
+            modalContainer.classList.remove('hidden');
+            
+            const modal = $('#app-modal');
+            const saveButton = $(`button[form="${formId}"]`);
+
+            requestAnimationFrame(() => {
+                 modal.classList.add('open');
+            });
+
+            const closeModal = () => {
+                modal.classList.remove('open');
+                setTimeout(() => { 
+                    modalContainer.classList.add('hidden'); 
+                    modalContainer.innerHTML = ''; 
+                }, 300);
+            };
+
+            $('#close-modal-btn').onclick = closeModal;
+            $('#cancel-modal-btn').onclick = closeModal;
+            
+            if (onSubmit) {
+                const form = $(`#${formId}`);
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    if (saveButton) {
+                        saveButton.disabled = true;
+                        saveButton.innerHTML = `<span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>Saving...`;
+                    }
+                    try {
+                        await onSubmit(e);
+                        closeModal();
+                    } catch (err) {
+                        console.error("Form submission error:", err);
+                        showToast("An error occurred. Please check the console.", true);
+                        if (saveButton) { // Re-enable on error
+                            saveButton.disabled = false;
+                            saveButton.textContent = 'Save';
+                        }
+                    }
+                };
+            }
+        }
+
+        function openConfirmModal(title, message, onConfirm) {
+            const confirmHTML = `
+                <div id="confirm-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 open opacity-0">
+                    <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-slate-800">${title}</h3>
+                            <p class="mt-2 text-slate-600">${message}</p>
+                        </div>
+                        <div class="flex justify-end items-center p-4 border-t bg-slate-50 rounded-b-lg">
+                            <button id="confirm-cancel-btn" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-md mr-2 hover:bg-slate-300">Cancel</button>
+                            <button id="confirm-ok-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Confirm</button>
+                        </div>
+                    </div>
+                </div>`;
+            $('#modal-container').innerHTML = confirmHTML;
+            $('#modal-container').classList.remove('hidden');
+            const modal = $('#confirm-modal');
+            requestAnimationFrame(() => {
+                modal.classList.add('open');
+            });
+            const closeModal = () => {
+                modal.classList.remove('open');
+                setTimeout(() => { $('#modal-container').classList.add('hidden'); $('#modal-container').innerHTML = ''; }, 300);
+            };
+            $('#confirm-cancel-btn').onclick = closeModal;
+            $('#confirm-ok-btn').onclick = async () => {
+                await onConfirm();
+                closeModal();
+            };
+        }
+        
+        // --- Data Handling (Firestore) ---
+        function getCollectionPath(collectionName) {
+            if (!appState.userId) throw new Error("User not authenticated");
+            return `/artifacts/${appId}/public/data/${collectionName}`;
+        }
+        
+        async function addItem(collectionName, data) {
+            if (!appState.db) return showToast('Database not connected.', true);
+            try {
+                const docRef = await addDoc(collection(appState.db, getCollectionPath(collectionName)), { ...data, createdAt: serverTimestamp() });
+                showToast(`${collectionName.slice(0, -1)} added successfully.`);
+                await addNotification(`New ${collectionName.slice(0,-1)} "${data.name || data.title || data.invoiceNumber || ''}" was created.`);
+                return docRef.id;
+            } catch (error) { console.error(`Error adding ${collectionName}:`, error); showToast(`Failed to add.`, true); }
+        }
+        
+        async function updateItem(collectionName, id, data) {
+             if (!appState.db) return showToast('Database not connected.', true);
+            try {
+                await setDoc(doc(appState.db, getCollectionPath(collectionName), id), data, { merge: true });
+                showToast(`${collectionName.slice(0, -1)} updated successfully.`);
+            } catch (error) { console.error(`Error updating ${collectionName}:`, error); showToast(`Failed to update.`, true); }
+        }
+
+        async function deleteItem(collectionName, id, name) {
+            openConfirmModal(`Delete ${collectionName.slice(0,-1)}`, `Are you sure you want to delete "${name}"? This action cannot be undone.`, async () => {
+                if (!appState.db) return showToast('Database not connected.', true);
+                try {
+                    await deleteDoc(doc(appState.db, getCollectionPath(collectionName), id));
+                    showToast(`${collectionName.slice(0, -1)} deleted successfully.`);
+                } catch (error) { console.error(`Error deleting ${collectionName}:`, error); showToast(`Failed to delete.`, true); }
+            });
+        }
+
+        async function loadSettingsAndData() {
+            if (!appState.db) return;
+            showLoader();
+            try {
+                const settingsRef = doc(appState.db, getCollectionPath('settings'), 'main');
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    appState.settings = { ...appState.settings, ...settingsSnap.data() };
+                } else {
+                    await setDoc(settingsRef, appState.settings);
+                }
+                $('#app-name-sidebar').textContent = appState.settings.appName;
+                setupDataListeners();
+            } catch (error) {
+                console.error("Error loading settings:", error);
+                showToast("Could not load app settings.", true);
+                hideLoader();
+            }
+        }
+
+        function setupDataListeners() {
+            const collections = ['services', 'employees', 'leads', 'customers', 'subscriptions', 'invoices', 'expenses', 'notifications', 'tasks', 'appointments'];
+            let initialLoads = collections.length;
+
+            collections.forEach(name => {
+                const q = query(collection(appState.db, getCollectionPath(name)));
+                if (appState.listeners[name]) appState.listeners[name](); // Unsubscribe from old listener
+                appState.listeners[name] = onSnapshot(q, (snapshot) => {
+                    appState.data[name] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    if (initialLoads > 0) {
+                        initialLoads--;
+                        if (initialLoads === 0) {
+                            hideLoader();
+                            runDailyChecks(); // Run daily checks after all data is loaded
+                        }
+                    }
+                    
+                    if (name === 'notifications') updateNotificationUI();
+                    if (name === 'tasks') updateTaskAlerts();
+                    if (name === 'customers') updateSubscriptionAlerts();
+                    
+                    const [currentPath] = (window.location.hash.slice(1) || 'dashboard').split('/');
+                    // Re-render if the updated data is relevant to the current view
+                    if (currentPath === name.slice(0, -1) || currentPath === name || (currentPath === 'customer-detail' && name === 'customers') || currentPath === 'dashboard') {
+                        render();
+                    }
+                }, (error) => { 
+                    console.error(`Error listening to ${name}:`, error); 
+                    showToast(`Error loading ${name} data.`, true);
+                    if (initialLoads > 0) {
+                       initialLoads--;
+                       if (initialLoads === 0) hideLoader();
+                    }
+                });
+            });
+        }
+        
+        // --- Notifications & Alerts ---
+        async function addNotification(message) {
+             if (!appState.db) return;
+             await addDoc(collection(appState.db, getCollectionPath('notifications')), {
+                message,
+                read: false,
+                timestamp: serverTimestamp()
+             });
+        }
+        
+        async function markNotificationAsRead(id) {
+            await updateItem('notifications', id, { read: true });
+        }
+
+        async function markAllNotificationsAsRead() {
+            const batch = writeBatch(appState.db);
+            appState.data.notifications.forEach(n => {
+                if (!n.read) {
+                    const docRef = doc(appState.db, getCollectionPath('notifications'), n.id);
+                    batch.update(docRef, { read: true });
+                }
+            });
+            await batch.commit();
+            showToast("All notifications marked as read.");
+        }
+
+        function updateNotificationUI() {
+            const unread = appState.data.notifications.filter(n => !n.read);
+            const badge = $('#notification-badge');
+            if(unread.length > 0) {
+                badge.textContent = unread.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+            $('#notification-list').innerHTML = appState.data.notifications
+                .sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+                .slice(0, 10)
+                .map(n => `
+                    <div class="p-3 text-sm border-b hover:bg-slate-50 flex justify-between items-center ${n.read ? 'text-slate-400' : ''}">
+                        <span>${n.message}</span>
+                        ${!n.read ? `<button class="mark-as-read-btn p-1 rounded-full hover:bg-blue-100" data-id="${n.id}" title="Mark as read"><i data-lucide="check" class="w-4 h-4 text-blue-600"></i></button>` : ''}
+                    </div>`).join('');
+            lucide.createIcons();
+        }
+        
+        function updateTaskAlerts() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            const hasAlert = appState.data.tasks.some(task => {
+                if (task.status !== 'Done' && task.dueDate) {
+                    const dueDate = new Date(task.dueDate);
+                    return dueDate <= today;
+                }
+                return false;
+            });
+            const navLink = $('#tasks-nav-link');
+            if(navLink) {
+                if (hasAlert) {
+                    navLink.classList.add('blinking-alert');
+                } else {
+                    navLink.classList.remove('blinking-alert');
+                }
+            }
+        }
+
+        function updateSubscriptionAlerts() {
+            const now = new Date();
+            const hasAlert = appState.data.customers.some(c => 
+                (c.subscriptions || []).some(sub => {
+                    if (!sub.endDate) return false;
+                    const endDate = new Date(sub.endDate);
+                    const diffDays = (endDate - now) / (1000 * 60 * 60 * 24);
+                    return diffDays > 0 && diffDays <= 30;
+                })
+            );
+             const navLink = $('#subscriptions-nav-link');
+            if(navLink) {
+                if (hasAlert) {
+                    navLink.classList.add('blinking-alert');
+                } else {
+                    navLink.classList.remove('blinking-alert');
+                }
+            }
+        }
+        
+        async function checkSubscriptionRenewals() {
+            console.log("Running daily check for subscription renewals...");
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); 
+
+            const customersToUpdate = new Map();
+
+            for (const customer of appState.data.customers) {
+                if (!customer.subscriptions || customer.subscriptions.length === 0) {
+                    continue;
+                }
+
+                let customerUpdated = false;
+                const updatedSubscriptions = JSON.parse(JSON.stringify(customer.subscriptions));
+
+                for (const [index, sub] of updatedSubscriptions.entries()) {
+                    if (!sub.endDate) continue;
+
+                    const endDate = new Date(sub.endDate);
+                    endDate.setHours(0, 0, 0, 0);
+
+                    const diffTime = endDate.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    let message = null;
+                    let noticeType = null;
+                    
+                    const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
+                    const subName = subInfo ? `"${subInfo.name}"` : "a";
+
+
+                    sub.renewalNoticesSent = sub.renewalNoticesSent || {};
+
+                    if (diffDays <= 0 && !sub.renewalNoticesSent.expired) {
+                        noticeType = 'expired';
+                        message = `${customer.name}'s ${subName} subscription has expired.`;
+                    } else if (diffDays === 1 && !sub.renewalNoticesSent['1-day']) {
+                        noticeType = '1-day';
+                        message = `${customer.name}'s ${subName} subscription expires tomorrow.`;
+                    } else if (diffDays === 2 && !sub.renewalNoticesSent['2-day']) {
+                        noticeType = '2-day';
+                        message = `${customer.name}'s ${subName} subscription expires in 2 days.`;
+                    } else if (diffDays === 7 && !sub.renewalNoticesSent['7-day']) {
+                        noticeType = '7-day';
+                        message = `${customer.name}'s ${subName} subscription expires in 7 days.`;
+                    }
+                    
+                    if (message && noticeType) {
+                        await addNotification(message);
+                        sub.renewalNoticesSent[noticeType] = true;
+                        customerUpdated = true;
+                    }
+                }
+
+                if (customerUpdated) {
+                    customersToUpdate.set(customer.id, updatedSubscriptions);
+                }
+            }
+
+            if (customersToUpdate.size > 0) {
+                const batch = writeBatch(appState.db);
+                customersToUpdate.forEach((subscriptions, customerId) => {
+                    const customerRef = doc(appState.db, getCollectionPath('customers'), customerId);
+                    batch.update(customerRef, { subscriptions: subscriptions });
+                });
+                try {
+                    await batch.commit();
+                    console.log(`Updated renewal notices for ${customersToUpdate.size} customers.`);
+                } catch (error) {
+                    console.error("Error committing subscription renewal updates:", error);
+                }
+            }
+        }
+
+        function runDailyChecks() {
+            const lastCheck = localStorage.getItem('lastRenewalCheck');
+            const now = new Date().getTime();
+            const oneDay = 24 * 60 * 60 * 1000;
+
+            if (!lastCheck || (now - parseInt(lastCheck)) > oneDay) {
+                checkSubscriptionRenewals();
+                localStorage.setItem('lastRenewalCheck', now.toString());
+            }
+        }
+
+        // --- Custom Fields UI Logic ---
+        function getCustomFieldsHTML(fields = []) {
+            return `
+                <div id="custom-fields-container">
+                    <h4 class="text-md font-semibold text-slate-600 mt-4 mb-2">Custom Fields Definition</h4>
+                    ${(fields || []).map((field) => `
+                        <div class="custom-field-group flex items-center gap-2 mb-2">
+                            <input type="text" placeholder="Field Name" value="${field.name || ''}" class="flex-1 p-2 border rounded-md" data-field-name required>
+                            <select class="p-2 border rounded-md" data-field-type>
+                                <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
+                                <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
+                                <option value="date" ${field.type === 'date' ? 'selected' : ''}>Date</option>
+                            </select>
+                            <button type="button" class="remove-custom-field-btn bg-red-500 text-white p-2 rounded-md hover:bg-red-600">&times;</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button type="button" id="add-custom-field-btn" class="mt-2 text-blue-600 hover:text-blue-800 text-sm">+ Add Custom Field</button>
+            `;
+        }
+        
+        function attachCustomFieldHandlers() {
+            const container = $('#custom-fields-container');
+            if (!container) return;
+            $('#add-custom-field-btn').onclick = () => {
+                const newField = document.createElement('div');
+                newField.className = 'custom-field-group flex items-center gap-2 mb-2';
+                newField.innerHTML = `
+                    <input type="text" placeholder="Field Name" class="flex-1 p-2 border rounded-md" data-field-name required>
+                    <select class="p-2 border rounded-md" data-field-type><option value="text">Text</option><option value="number">Number</option><option value="date">Date</option></select>
+                    <button type="button" class="remove-custom-field-btn bg-red-500 text-white p-2 rounded-md hover:bg-red-600">&times;</button>
+                `;
+                container.appendChild(newField);
+            };
+            container.addEventListener('click', (e) => {
+                if (e.target.closest('.remove-custom-field-btn')) {
+                    e.target.closest('.custom-field-group').remove();
+                }
+            });
+        }
+        
+        function getCustomFieldsDataFromForm() {
+            const fields = [];
+            $$('.custom-field-group').forEach(group => {
+                const nameInput = group.querySelector('[data-field-name]');
+                const typeInput = group.querySelector('[data-field-type]');
+                if (nameInput.value) fields.push({ name: nameInput.value, type: typeInput.value });
+            });
+            return fields;
+        }
+
+        function renderCustomDataFields(customFieldsSchema, customData = {}) {
+            if (!customFieldsSchema || customFieldsSchema.length === 0) return '';
+            return `<h4 class="text-md font-semibold text-slate-600 mt-4 mb-2">Service Specific Information</h4>` + 
+            customFieldsSchema.map(field => `
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700">${field.name}</label>
+                    <input type="${field.type}" name="custom_${field.name.replace(/\s+/g, '_')}" value="${(customData && customData[field.name]) || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm">
+                </div>
+            `).join('');
+        }
+
+        function getCustomDataFromForm(customFieldsSchema) {
+            const data = {};
+            if (!customFieldsSchema) return data;
+            customFieldsSchema.forEach(field => {
+                const input = $(`[name="custom_${field.name.replace(/\s+/g, '_')}"]`);
+                if (input) data[field.name] = input.value;
+            });
+            return data;
+        }
+
+        // --- Render Functions for each module ---
+        const renderFunctions = {};
+
+        renderFunctions.dashboard = () => {
+            const hotLeads = appState.data.leads.filter(l => l.status === 'Hot').length;
+            const newLeads = appState.data.leads.filter(l => l.status === 'New').length;
+            const totalCustomers = appState.data.customers.length;
+            const todoTasks = appState.data.tasks.filter(t => t.status === 'To Do').length;
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            const todaysAppointments = appState.data.appointments.filter(a => a.dateTime && a.dateTime.startsWith(todayStr));
+
+            const upcomingRenewals = appState.data.customers.flatMap(c => 
+                (c.subscriptions || []).map(sub => ({ customer: c, subscription: sub }))
+            ).filter(({ customer, subscription }) => {
+                if (!subscription.endDate) return false;
+                const endDate = new Date(subscription.endDate);
+                const diffDays = (endDate - now) / (1000 * 60 * 60 * 24);
+                return diffDays > 0 && diffDays <= 30;
+            });
+
+
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    ${[
+                        {title: 'Hot Leads', value: hotLeads, icon: 'flame', color: 'red'},
+                        {title: 'New Leads', value: newLeads, icon: 'bell', color: 'blue'},
+                        {title: 'Total Customers', value: totalCustomers, icon: 'users', color: 'green'},
+                        {title: 'Pending Tasks', value: todoTasks, icon: 'check-square', color: 'purple'},
+                    ].map(stat => `
+                        <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                            <div class="bg-${stat.color}-100 p-3 rounded-full"><i data-lucide="${stat.icon}" class="text-${stat.color}-500"></i></div>
+                            <div class="ml-4"><p class="text-slate-500">${stat.title}</p><p class="text-2xl font-bold">${stat.value}</p></div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                     <div class="lg:col-span-2 grid grid-rows-2 gap-6">
+                         <div class="bg-white p-6 rounded-lg shadow-md">
+                             <h3 class="text-lg font-semibold mb-4">Today's Appointments (${todaysAppointments.length})</h3>
+                             <div class="overflow-y-auto max-h-40">
+                                 ${todaysAppointments.length > 0 ? todaysAppointments.map(a => {
+                                     const customer = appState.data.customers.find(c => c.id === a.customerId);
+                                     return `<div class="border-b last:border-b-0 py-2">
+                                         <p class="font-semibold">${a.title} with ${customer?.name || 'N/A'}</p>
+                                         <p class="text-sm text-slate-500">${formatDateTime(a.dateTime)}</p>
+                                     </div>`
+                                 }).join('') : '<p class="text-center text-slate-500 py-4">No appointments scheduled for today.</p>'}
+                             </div>
+                         </div>
+                         <div class="bg-white p-6 rounded-lg shadow-md">
+                             <h3 class="text-lg font-semibold mb-4">Subscription Renewal Alerts (${upcomingRenewals.length})</h3>
+                             <div class="overflow-y-auto max-h-40">
+                                 <table class="w-full text-left">
+                                     <thead><tr class="border-b"><th class="py-2">Customer</th><th>End Date</th><th>Action</th></tr></thead>
+                                     <tbody>
+                                         ${upcomingRenewals.length > 0 ? upcomingRenewals.map(({ customer, subscription }) => {
+                                             const subInfo = appState.data.subscriptions.find(s => s.id === subscription.subscriptionId);
+                                             const template = appState.settings.renewalMessageTemplate || '';
+                                             const message = encodeURIComponent(
+                                                 template.replace('{{customerName}}', customer.name)
+                                                         .replace('{{subscriptionName}}', subInfo?.name || '')
+                                                         .replace('{{endDate}}', formatDate(subscription.endDate))
+                                             );
+                                             return `<tr class="border-b hover:bg-slate-50">
+                                                 <td class="py-2">${customer.name} (${subInfo?.name || 'N/A'})</td>
+                                                 <td class="text-red-600">${formatDate(subscription.endDate)}</td>
+                                                 <td><a href="https://wa.me/${customer.phone}?text=${message}" target="_blank" class="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 inline-flex items-center"><i data-lucide="send" class="w-4 h-4 mr-1"></i></a></td>
+                                             </tr>`;
+                                         }).join('') : '<tr><td colspan="3" class="py-4 text-center text-slate-500">No upcoming renewals.</td></tr>'}
+                                     </tbody>
+                                 </table>
+                             </div>
+                         </div>
+                     </div>
+                     <div class="bg-white p-6 rounded-lg shadow-md">
+                         <h3 class="text-lg font-semibold mb-4">Pending Customer Payments</h3>
+                         <div class="overflow-y-auto max-h-96">
+                              <table class="w-full text-left">
+                                  <thead><tr class="border-b"><th class="py-2">Customer</th><th>Balance Due</th></tr></thead>
+                                <tbody>
+                                  ${appState.data.customers.map(c => {
+                                      const servicesBalance = (c.assignedServices || []).reduce((total, service) => {
+                                          const paid = (service.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                          return total + ((service.totalCost || 0) - paid);
+                                      }, 0);
+                                      const subsBalance = (c.subscriptions || []).reduce((total, sub) => {
+                                          const paid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                          return total + ((sub.price || 0) - paid);
+                                      }, 0);
+                                      const totalBalance = servicesBalance + subsBalance;
+                                      if (totalBalance <= 0) return '';
+                                      return `
+                                          <tr class="border-b hover:bg-slate-50">
+                                              <td class="py-2"><a href="#customer-detail/${c.id}" class="text-blue-600 hover:underline">${c.name}</a></td>
+                                              <td class="text-red-600">${formatCurrency(totalBalance)}</td>
+                                          </tr>
+                                      `
+                                  }).join('') || '<tr><td colspan="2" class="py-4 text-center text-slate-500">No pending payments.</td></tr>'}
+                                </tbody>
+                            </table>
+                         </div>
+                     </div>
+                </div>
+            `;
+        };
+
+        renderFunctions.services = () => {
+            const filterText = (appState.filters.services || '').toLowerCase();
+            const filteredData = appState.data.services.filter(item => 
+                item.name.toLowerCase().includes(filterText)
+            );
+            return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Manage Services</h2>
+                    <div class="flex items-center gap-2">
+                        <button id="export-services-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Export XLS</button>
+                        <button id="add-service-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Service</button>
+                    </div>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="services" placeholder="Search services..." class="w-full p-2 border rounded-md" value="${appState.filters.services || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="overflow-x-auto">
+                         <table class="w-full text-left">
+                             <thead><tr class="border-b bg-slate-50"><th class="p-3">Name</th><th class="p-3">Price</th><th class="p-3">Custom Fields</th><th class="p-3 text-right">Actions</th></tr></thead>
+                             <tbody>
+                                 ${filteredData.length > 0 ? filteredData.map(service => `
+                                     <tr class="border-b hover:bg-slate-50">
+                                         <td class="p-3">${service.name}</td>
+                                         <td class="p-3">${formatCurrency(service.price)}</td>
+                                         <td class="p-3">${(service.customFields || []).map(f => f.name).join(', ')}</td>
+                                         <td class="p-3 text-right">
+                                             <button class="edit-service-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${service.id}">Edit</button>
+                                             <button class="delete-service-btn text-red-600 hover:text-red-800" data-id="${service.id}" data-name="${service.name}">Delete</button>
+                                         </td>
+                                     </tr>
+                                 `).join('') : `<tr><td colspan="4" class="text-center p-4 text-slate-500">No services found.</td></tr>`}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>
+            `;
+        };
+
+        function handleServiceForm(id = null) {
+            const service = id ? appState.data.services.find(s => s.id === id) : {};
+            const formContent = `
+                <div class="mb-4"><label class="block text-sm font-medium text-slate-700">Service Name</label><input type="text" id="service-name" value="${service.name || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required></div>
+                <div class="mb-4"><label class="block text-sm font-medium text-slate-700">Base Price (INR)</label><input type="number" id="service-price" value="${service.price || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required></div>
+                ${getCustomFieldsHTML(service.customFields)}
+            `;
+            openModal(id ? 'Edit Service' : 'Add Service', formContent, 'service-form', async () => {
+                const data = { name: $('#service-name').value, price: parseFloat($('#service-price').value) || 0, customFields: getCustomFieldsDataFromForm() };
+                if (id) await updateItem('services', id, data); else await addItem('services', data);
+            });
+            attachCustomFieldHandlers();
+        }
+
+        renderFunctions.employees = () => {
+             const filterText = (appState.filters.employees || '').toLowerCase();
+            const filteredData = appState.data.employees.filter(item => 
+                item.name.toLowerCase().includes(filterText) || item.email.toLowerCase().includes(filterText)
+            );
+            return `
+                 <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                     <h2 class="text-2xl font-semibold">Manage Employees</h2>
+                      <div class="flex items-center gap-2">
+                         <button id="export-employees-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Export XLS</button>
+                         <button id="add-employee-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Employee</button>
+                      </div>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="employees" placeholder="Search employees..." class="w-full p-2 border rounded-md" value="${appState.filters.employees || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="overflow-x-auto">
+                         <table class="w-full text-left">
+                             <thead><tr class="border-b bg-slate-50"><th class="p-3">Name</th><th class="p-3">Email</th><th class="p-3">Phone</th><th class="p-3">Services Handled</th><th class="p-3 text-right">Actions</th></tr></thead>
+                             <tbody>
+                                 ${filteredData.length > 0 ? filteredData.map(emp => `
+                                     <tr class="border-b hover:bg-slate-50">
+                                         <td class="p-3">${emp.name}</td>
+                                         <td class="p-3">${emp.email}</td>
+                                         <td class="p-3">${emp.phone}</td>
+                                         <td class="p-3">${(emp.servicesHandled || []).map(sid => appState.data.services.find(s => s.id === sid)?.name || 'N/A').join(', ')}</td>
+                                         <td class="p-3 text-right">
+                                             <button class="edit-employee-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${emp.id}">Edit</button>
+                                             <button class="delete-employee-btn text-red-600 hover:text-red-800" data-id="${emp.id}" data-name="${emp.name}">Delete</button>
+                                         </td>
+                                     </tr>
+                                 `).join('') : `<tr><td colspan="5" class="text-center p-4 text-slate-500">No employees found.</td></tr>`}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>
+            `;
+        };
+
+        function handleEmployeeForm(id = null) {
+            const emp = id ? appState.data.employees.find(e => e.id === id) : {};
+            const formContent = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-slate-700">Full Name</label><input type="text" id="employee-name" value="${emp.name || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required></div>
+                    <div><label class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="employee-email" value="${emp.email || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required></div>
+                    <div><label class="block text-sm font-medium text-slate-700">Phone</label><input type="tel" id="employee-phone" value="${emp.phone || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required></div>
+                    <div><label class="block text-sm font-medium text-slate-700">Services Handled</label><select id="employee-services" multiple class="mt-1 block w-full p-2 border rounded-md shadow-sm h-32">${appState.data.services.map(s => `<option value="${s.id}" ${ (emp.servicesHandled || []).includes(s.id) ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+                </div>
+            `;
+             openModal(id ? 'Edit Employee' : 'Add Employee', formContent, 'employee-form', async () => {
+                const selectedServices = Array.from($('#employee-services').selectedOptions).map(option => option.value);
+                const data = { name: $('#employee-name').value, email: $('#employee-email').value, phone: $('#employee-phone').value, servicesHandled: selectedServices };
+                if (id) await updateItem('employees', id, data); else await addItem('employees', data);
+            });
+        }
+
+        renderFunctions.leads = () => {
+            const filterText = (appState.filters.leads || '').toLowerCase();
+            const filteredData = appState.data.leads.filter(item => item.name.toLowerCase().includes(filterText));
+            const viewButtons = `
+                <div class="flex items-center space-x-2">
+                    <button class="lead-view-toggle ${appState.leadsView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-white'}" data-view="kanban"><i data-lucide="layout-grid"></i></button>
+                    <button class="lead-view-toggle ${appState.leadsView === 'table' ? 'bg-blue-600 text-white' : 'bg-white'}" data-view="table"><i data-lucide="list"></i></button>
+                    <button class="lead-view-toggle ${appState.leadsView === 'cards' ? 'bg-blue-600 text-white' : 'bg-white'}" data-view="cards"><i data-lucide="trello"></i></button>
+                </div>
+            `.replaceAll('lead-view-toggle', 'lead-view-toggle p-2 rounded-md border');
+            
+            let viewContent = '';
+            if (appState.leadsView === 'kanban') {
+                viewContent = `<div class="kanban-container">
+                    ${appState.settings.leadStages.map(stage => `
+                        <div class="kanban-stage">
+                            <h3 class="font-bold text-lg mb-4 capitalize text-slate-700">${stage}</h3>
+                            <div class="kanban-column space-y-4" data-status="${stage}">
+                                ${filteredData.filter(lead => lead.status === stage).map(lead => `
+                                    <div class="kanban-card bg-white p-4 rounded-lg shadow-md" draggable="true" data-id="${lead.id}">
+                                        <p class="font-semibold">${lead.name}</p>
+                                        <p class="text-sm text-slate-500">${lead.phone}</p>
+                                        <div class="mt-3 flex justify-end gap-1">
+                                            <button class="convert-lead-btn text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600" data-id="${lead.id}">Convert</button>
+                                            <button class="edit-lead-btn text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600" data-id="${lead.id}">Edit</button>
+                                            <button class="delete-lead-btn text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600" data-id="${lead.id}" data-name="${lead.name}">Del</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+            } else if (appState.leadsView === 'table') {
+                viewContent = `<div class="bg-white p-6 rounded-lg shadow-md"><table class="w-full text-left">
+                    <thead><tr class="border-b"><th class="p-2">Name</th><th class="p-2">Phone</th><th class="p-2">Service</th><th class="p-2">Status</th><th class="p-2">Actions</th></tr></thead>
+                    <tbody>${filteredData.map(lead => `
+                        <tr class="border-b"><td class="p-2">${lead.name}</td><td class="p-2">${lead.phone}</td><td class="p-2">${appState.data.services.find(s=>s.id===lead.serviceId)?.name || 'N/A'}</td><td class="p-2">${lead.status}</td><td class="p-2"><button class="edit-lead-btn text-blue-600" data-id="${lead.id}">Edit</button></td></tr>
+                    `).join('')}</tbody></table></div>`;
+            } else { // cards view
+                 viewContent = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    ${filteredData.map(lead => `
+                        <div class="bg-white p-4 rounded-lg shadow-md">
+                            <p class="font-semibold">${lead.name}</p><p class="text-sm text-slate-500">${lead.phone}</p>
+                            <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">${lead.status}</span>
+                        </div>`).join('')}
+                    </div>`;
+            }
+
+            return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Lead Management</h2>
+                    <div class="flex items-center gap-2 self-start md:self-center">
+                        ${viewButtons}
+                        <button id="add-lead-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Lead</button>
+                    </div>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="leads" placeholder="Search leads..." class="w-full p-2 border rounded-md" value="${appState.filters.leads || ''}"></div>
+                ${viewContent}
+            `;
+        };
+
+        function attachLeadViewHandlers() {
+            $$('.lead-view-toggle').forEach(btn => btn.onclick = () => {
+                appState.leadsView = btn.dataset.view;
+                render();
+            });
+        }
+        
+        function handleLeadForm(id = null) {
+            const lead = id ? appState.data.leads.find(l => l.id === id) : {};
+            const service = appState.data.services.find(s => s.id === lead?.serviceId);
+            const formContent = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label>Name*</label><input type="text" id="lead-name" value="${lead.name || ''}" required></div>
+                    <div><label>Phone</label><input type="tel" id="lead-phone" value="${lead.phone || ''}"></div>
+                    <div><label>Email</label><input type="email" id="lead-email" value="${lead.email || ''}"></div>
+                    <div><label>Status</label><select id="lead-status">${appState.settings.leadStages.map(s => `<option value="${s}" ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+                    <div><label>Interested Service</label><select id="lead-service"><option value="">-- Select --</option>${appState.data.services.map(s => `<option value="${s.id}" ${lead.serviceId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+                    <div><label>Appointment Date</label><input type="date" id="lead-appointment" value="${lead.appointmentDate || ''}"></div>
+                </div>
+                <div class="mt-4"><label>Notes</label><textarea id="lead-notes" rows="3">${lead.notes || ''}</textarea></div>
+                <div id="lead-custom-data-fields" class="mt-4">${service ? renderCustomDataFields(service.customFields, lead.customData) : ''}</div>
+            `.replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"').replaceAll('<select', '<select class="mt-1 block w-full p-2 border rounded-md shadow-sm"').replaceAll('<textarea', '<textarea class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
+             openModal(id ? 'Edit Lead' : 'Add Lead', formContent, 'lead-form', async () => {
+                const serviceId = $('#lead-service').value;
+                const service = appState.data.services.find(s => s.id === serviceId);
+                const data = {
+                    name: $('#lead-name').value, phone: $('#lead-phone').value, email: $('#lead-email').value,
+                    status: $('#lead-status').value, serviceId, appointmentDate: $('#lead-appointment').value,
+                    notes: $('#lead-notes').value, customData: getCustomDataFromForm(service?.customFields)
+                };
+                if (id) await updateItem('leads', id, data); else await addItem('leads', data);
+            });
+            $('#lead-service').onchange = e => {
+                const service = appState.data.services.find(s => s.id === e.target.value);
+                $('#lead-custom-data-fields').innerHTML = service ? renderCustomDataFields(service.customFields, {}) : '';
+            }
+        }
+        
+        async function convertLeadToCustomer(leadId) {
+            openConfirmModal('Convert Lead', 'Are you sure you want to convert this lead to a customer? The original lead will be deleted.', async () => {
+                const lead = appState.data.leads.find(l => l.id === leadId);
+                if (!lead) return showToast("Lead not found.", true);
+                const customerData = { name: lead.name, phone: lead.phone, email: lead.email, leadSourceId: leadId, assignedServices: [] };
+                const newCustomerId = await addItem('customers', customerData);
+                if(newCustomerId) {
+                    await deleteDoc(doc(appState.db, getCollectionPath('leads'), leadId)); // Direct delete without confirm modal
+                    showToast("Lead successfully converted to customer.");
+                    window.location.hash = `#customer-detail/${newCustomerId}`;
+                }
+            });
+        }
+        
+        function setupKanbanDND() {
+            let draggedItem = null;
+            $$('.kanban-card').forEach(card => {
+                card.addEventListener('dragstart', () => { draggedItem = card; setTimeout(() => card.style.display = 'none', 0); });
+                card.addEventListener('dragend', () => { setTimeout(() => { if(draggedItem) { draggedItem.style.display = 'block'; } draggedItem = null; }, 0); });
+            });
+            $$('.kanban-column').forEach(column => {
+                column.addEventListener('dragover', e => e.preventDefault());
+                column.addEventListener('drop', async () => {
+                    if(draggedItem) {
+                        column.appendChild(draggedItem);
+                        await updateItem('leads', draggedItem.dataset.id, { status: column.dataset.status });
+                    }
+                });
+            });
+        }
+        
+        renderFunctions.customers = () => {
+            const filterText = (appState.filters.customers || '').toLowerCase();
+            const filteredData = appState.data.customers.filter(item => item.name.toLowerCase().includes(filterText));
+              return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Manage Customers</h2>
+                    <div class="flex items-center gap-2">
+                        <button id="export-customers-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Export XLS</button>
+                        <button id="add-customer-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Customer</button>
+                    </div>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="customers" placeholder="Search customers..." class="w-full p-2 border rounded-md" value="${appState.filters.customers || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="overflow-x-auto">
+                         <table class="w-full text-left">
+                             <thead><tr class="border-b bg-slate-50"><th class="p-3">Name</th><th class="p-3">Phone</th><th class="p-3">Email</th><th class="p-3 text-right">Actions</th></tr></thead>
+                             <tbody>
+                                 ${filteredData.map(c => {
+                                     let alertClass = '';
+                                     if (c.subscriptions && c.subscriptions.length > 0) {
+                                         const now = new Date();
+                                         const hasUpcomingRenewal = c.subscriptions.some(sub => {
+                                             const endDate = new Date(sub.endDate);
+                                             const diffDays = (endDate - now) / (1000 * 60 * 60 * 24);
+                                             return diffDays > 0 && diffDays <= 30;
+                                         });
+                                         if (hasUpcomingRenewal) {
+                                             alertClass = 'blinking-alert';
+                                         }
+                                     }
+                                     return `
+                                     <tr class="border-b hover:bg-slate-50">
+                                         <td class="p-3 ${alertClass}">${c.name}</td><td class="p-3">${c.phone}</td><td class="p-3">${c.email}</td>
+                                         <td class="p-3 text-right">
+                                             <button class="view-customer-btn text-green-600 hover:text-green-800 mr-2" data-id="${c.id}">Manage</button>
+                                             <button class="edit-customer-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${c.id}">Edit</button>
+                                             <button class="delete-customer-btn text-red-600 hover:text-red-800" data-id="${c.id}" data-name="${c.name}">Delete</button>
+                                         </td>
+                                     </tr>`
+                                 }).join('') || `<tr><td colspan="4" class="text-center p-4 text-slate-500">No customers found.</td></tr>`}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>`;
+        };
+        
+        function handleCustomerForm(id = null) {
+            const customer = id ? appState.data.customers.find(c => c.id === id) : {};
+              const formContent = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                       <div><label>Name</label><input type="text" id="customer-name" value="${customer.name || ''}" required></div>
+                                       <div><label>Phone</label><input type="tel" id="customer-phone" value="${customer.phone || ''}" required></div>
+                                       <div><label>Email</label><input type="email" id="customer-email" value="${customer.email || ''}"></div>
+                                   </div>`.replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
+              openModal(id ? 'Edit Customer' : 'Add Customer', formContent, 'customer-form', async () => {
+                const data = { name: $('#customer-name').value, phone: $('#customer-phone').value, email: $('#customer-email').value };
+                if (id) await updateItem('customers', id, data); else await addItem('customers', data);
+            });
+        }
+
+        renderFunctions.customerDetail = (id) => {
+            const customer = appState.data.customers.find(c => c.id === id);
+            if (!customer) return '<p>Customer not found.</p>';
+
+            let summary = { totalBilled: 0, totalPaid: 0, totalPayout: 0, totalProfit: 0 };
+            
+            (customer.assignedServices || []).forEach(s => {
+                summary.totalBilled += s.totalCost || 0;
+                summary.totalPaid += (s.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                summary.totalPayout += (s.payouts || []).reduce((sum, p) => sum + p.amount, 0);
+            });
+            (customer.subscriptions || []).forEach(sub => {
+                summary.totalBilled += sub.price || 0;
+                summary.totalPaid += (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+            });
+
+             summary.totalProfit = summary.totalBilled - summary.totalPayout;
+            
+            return `
+                <div class="flex justify-between items-start mb-6"><h2 class="text-3xl font-bold">${customer.name}</h2><a href="#customers" class="bg-slate-200 px-4 py-2 rounded-md">Back</a></div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Assigned Services</h3><button id="assign-service-btn" data-customer-id="${id}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm">Assign Service</button></div>
+                           <div class="space-y-4">
+                                ${(customer.assignedServices || []).map((service, index) => {
+                                    const serviceInfo = appState.data.services.find(s => s.id === service.serviceId);
+                                    const employeeInfo = appState.data.employees.find(e => e.id === service.employeeId);
+                                    const paid = (service.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                    const balance = (service.totalCost || 0) - paid;
+                                    const payout = (service.payouts || []).reduce((sum, p) => sum + p.amount, 0);
+                                    const profit = (service.totalCost || 0) - payout;
+                                    return `
+                                        <div class="border rounded-lg p-4">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                     <p class="font-bold text-lg">${serviceInfo?.name || 'Unknown'}</p>
+                                                     <p class="text-sm text-slate-600">Handled by: ${employeeInfo?.name || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                    <button class="remove-assigned-service-btn text-red-500 hover:text-red-700 text-sm" data-customer-id="${id}" data-service-index="${index}">Remove</button>
+                                                </div>
+                                            </div>
+                                            <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                                                <div><p class="text-sm">Total Cost</p><p>${formatCurrency(service.totalCost)}</p></div>
+                                                <div><p class="text-sm">Amount Paid</p><p class="text-green-600">${formatCurrency(paid)}</p></div>
+                                                <div><p class="text-sm">Balance</p><p class="text-red-600">${formatCurrency(balance)}</p></div>
+                                                <div><p class="text-sm">Payout</p><p>${formatCurrency(payout)}</p></div>
+                                                <div><p class="text-sm">Profit</p><p class="text-indigo-600">${formatCurrency(profit)}</p></div>
+                                            </div>
+                                            <div class="mt-4 flex justify-end gap-2">
+                                                <button class="add-payout-btn bg-orange-100 text-orange-700 px-3 py-1 rounded-md text-sm" data-customer-id="${id}" data-service-index="${index}">+ Add Payout</button>
+                                                <button class="add-payment-btn bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm" data-customer-id="${id}" data-service-index="${index}">+ Add Payment</button>
+                                            </div>
+                                        </div>`;
+                                }).join('') || '<p class="text-slate-500">No services assigned.</p>'}
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">Subscriptions</h3><button id="assign-subscription-btn" data-customer-id="${customer.id}" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm">Assign Subscription</button></div>
+                            <div class="space-y-4">
+                            ${(customer.subscriptions && customer.subscriptions.length > 0) ? customer.subscriptions.map((sub, index) => {
+                                const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
+                                const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                const subBalance = (sub.price || 0) - subPaid;
+                                return `
+                                    <div class="border rounded-lg p-4">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <p class="font-bold">${subInfo?.name || 'N/A'}</p>
+                                                <p class="text-sm text-slate-500">Active from ${formatDate(sub.startDate)} to ${formatDate(sub.endDate)}</p>
+                                            </div>
+                                            <button class="remove-subscription-btn text-red-500 hover:text-red-700 text-sm" data-customer-id="${customer.id}" data-subscription-index="${index}" data-name="${subInfo?.name}">Remove</button>
+                                        </div>
+                                        <div class="mt-2 grid grid-cols-3 gap-2 text-sm text-center border-t pt-2">
+                                            <div><p>Total</p><p class="font-semibold">${formatCurrency(sub.price)}</p></div>
+                                            <div><p>Paid</p><p class="font-semibold text-green-600">${formatCurrency(subPaid)}</p></div>
+                                            <div><p>Balance</p><p class="font-semibold text-red-600">${formatCurrency(subBalance)}</p></div>
+                                        </div>
+                                        <div class="mt-2 flex justify-end gap-2">
+                                            ${subBalance > 0 ? `<button class="add-subscription-payment-btn" data-customer-id="${customer.id}" data-subscription-index="${index}" class="bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm">+ Add Payment</button>` : ''}
+                                        </div>
+                                    </div>`;
+                            }).join('') : `<p class="text-slate-500 mb-4">No active subscriptions.</p>`}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-fit">
+                        <h3 class="text-xl font-semibold mb-4">Financial Summary</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between"><span>Total Billed:</span><span class="font-semibold">${formatCurrency(summary.totalBilled)}</span></div>
+                            <div class="flex justify-between"><span>Total Paid:</span><span class="font-semibold text-green-600">${formatCurrency(summary.totalPaid)}</span></div>
+                            <div class="flex justify-between"><span>Total Payout:</span><span>${formatCurrency(summary.totalPayout)}</span></div>
+                             <div class="flex justify-between border-t pt-2 font-bold text-indigo-600"><span>Total Profit:</span><span>${formatCurrency(summary.totalProfit)}</span></div>
+                        </div>
+                        <div class="mt-6"><button data-customer-id="${id}" id="create-invoice-btn" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-md">Create Invoice</button></div>
+                    </div>
+                </div>`;
+        };
+
+        function handleCustomerDetailEvents(customerId) {
+            const customer = appState.data.customers.find(c => c.id === customerId);
+            if (!customer) return;
+
+            const assignServiceBtn = $('#assign-service-btn');
+            if(assignServiceBtn) assignServiceBtn.onclick = () => handleAssignServiceForm(customerId);
+            
+            $$('.add-payment-btn').forEach(btn => btn.onclick = () => handleAddPaymentForm(customerId, btn.dataset.serviceIndex));
+            $$('.add-payout-btn').forEach(btn => btn.onclick = () => handleAddPayoutForm(customerId, btn.dataset.serviceIndex));
+            $$('.remove-assigned-service-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const serviceIndex = parseInt(btn.dataset.serviceIndex);
+                    const serviceInfo = appState.data.services.find(s => s.id === customer.assignedServices[serviceIndex].serviceId);
+                    openConfirmModal('Remove Service', `Are you sure you want to remove the "${serviceInfo.name}" service from this customer?`, async () => {
+                        const updatedServices = customer.assignedServices.filter((_, index) => index !== serviceIndex);
+                        await updateItem('customers', customerId, { assignedServices: updatedServices });
+                    });
+                }
+            });
+            
+            const createInvoiceBtn = $('#create-invoice-btn');
+            if (createInvoiceBtn) createInvoiceBtn.onclick = () => handleCreateInvoiceForm(customerId);
+            
+            const assignSubBtn = $('#assign-subscription-btn');
+            if (assignSubBtn) assignSubBtn.onclick = () => handleAssignSubscriptionForm(customerId);
+            
+            $$('.add-subscription-payment-btn').forEach(btn => btn.onclick = () => handleAddSubscriptionPaymentForm(customerId, parseInt(btn.dataset.subscriptionIndex)));
+            
+            $$('.remove-subscription-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const subIndex = parseInt(btn.dataset.subscriptionIndex);
+                    openConfirmModal('Remove Subscription', `Are you sure you want to remove the "${btn.dataset.name}" subscription?`, async () => {
+                        const updatedSubscriptions = customer.subscriptions.filter((_, index) => index !== subIndex);
+                        await updateItem('customers', customerId, { subscriptions: updatedSubscriptions });
+                    });
+                }
+            });
+        }
+        
+        function handleAssignServiceForm(customerId) {
+            const formContent = `
+                <div><label>Service</label><select id="assign-service-id" required><option value="">-- Choose --</option>${appState.data.services.map(s => `<option value="${s.id}" data-price="${s.price}">${s.name}</option>`).join('')}</select></div>
+                <div><label>Employee</label><select id="assign-employee-id" required><option value="">-- Choose --</option></select></div>
+                <div><label>Total Cost (INR)</label><input type="number" id="assign-service-cost" required></div>
+                <div><label>Initial Payout to Employee (INR)</label><input type="number" id="assign-initial-payout" value="0"></div>
+                <div><label>Advance Payment from Customer (INR)</label><input type="number" id="assign-advance-payment" value="0"></div>
+                <div id="assign-custom-data-fields" class="mt-4"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"').replaceAll('<select', '<select class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
+            
+            openModal('Assign Service', formContent, 'assign-service-form', async () => {
+                const customer = appState.data.customers.find(c => c.id === customerId);
+                const serviceId = $('#assign-service-id').value;
+                const service = appState.data.services.find(s => s.id === serviceId);
+                const newService = {
+                    serviceId: serviceId, employeeId: $('#assign-employee-id').value,
+                    totalCost: parseFloat($('#assign-service-cost').value) || 0,
+                    payments: [],
+                    payouts: [],
+                    customData: getCustomDataFromForm(service?.customFields),
+                    assignedAt: new Date() 
+                };
+                const advance = parseFloat($('#assign-advance-payment').value) || 0;
+                if (advance > 0) newService.payments.push({ amount: advance, date: new Date().toISOString(), notes: 'Advance Payment' });
+                
+                const initialPayout = parseFloat($('#assign-initial-payout').value) || 0;
+                if (initialPayout > 0) newService.payouts.push({amount: initialPayout, date: new Date().toISOString(), notes: 'Initial Payout'});
+
+                const updatedServices = [...(customer.assignedServices || []), newService];
+                await updateItem('customers', customerId, { assignedServices: updatedServices });
+            });
+
+            $('#assign-service-id').onchange = () => {
+                const serviceId = $('#assign-service-id').value;
+                const service = appState.data.services.find(s => s.id === serviceId);
+                const price = $('#assign-service-id').options[$('#assign-service-id').selectedIndex].dataset.price;
+                $('#assign-service-cost').value = price || 0;
+                
+                const employees = appState.data.employees.filter(e => (e.servicesHandled || []).includes(serviceId));
+                $('#assign-employee-id').innerHTML = `<option value="">-- Choose --</option>` + employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+
+                $('#assign-custom-data-fields').innerHTML = service ? renderCustomDataFields(service.customFields, {}) : '';
+            };
+        }
+
+        function handleAddPaymentForm(customerId, serviceIndex) {
+            const formContent = `
+                <div><label>Payment Amount (INR)</label><input type="number" id="payment-amount" required></div>
+                <div><label>Payment Date</label><input type="date" id="payment-date" value="${new Date().toISOString().split('T')[0]}" required></div>
+                <div><label>Notes</label><input type="text" id="payment-notes"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
+            openModal('Add Payment', formContent, 'add-payment-form', async () => {
+                const customer = appState.data.customers.find(c => c.id === customerId);
+                const updatedServices = [...customer.assignedServices];
+                if (!updatedServices[serviceIndex].payments) updatedServices[serviceIndex].payments = [];
+                updatedServices[serviceIndex].payments.push({ 
+                    amount: parseFloat($('#payment-amount').value) || 0, 
+                    date: new Date($('#payment-date').value).toISOString(),
+                    notes: $('#payment-notes').value
+                });
+                await updateItem('customers', customerId, { assignedServices: updatedServices });
+            });
+        }
+        
+        function handleAddPayoutForm(customerId, serviceIndex) {
+            const formContent = `
+                <div><label>Payout Amount (INR)</label><input type="number" id="payout-amount" required></div>
+                <div><label>Payout Date</label><input type="date" id="payout-date" value="${new Date().toISOString().split('T')[0]}" required></div>
+                <div><label>Notes</label><input type="text" id="payout-notes"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
+            openModal('Add Payout', formContent, 'add-payout-form', async () => {
+                const customer = appState.data.customers.find(c => c.id === customerId);
+                const updatedServices = [...customer.assignedServices];
+                if (!updatedServices[serviceIndex].payouts) updatedServices[serviceIndex].payouts = [];
+                updatedServices[serviceIndex].payouts.push({ 
+                    amount: parseFloat($('#payout-amount').value) || 0, 
+                    date: new Date($('#payout-date').value).toISOString(),
+                    notes: $('#payout-notes').value
+                });
+                await updateItem('customers', customerId, { assignedServices: updatedServices });
+            });
+        }
+        
+        renderFunctions.payouts = () => {
+            let allRevenueItems = [];
+
+            // 1. Process Services
+            appState.data.customers.forEach(c => {
+                (c.assignedServices || []).forEach(s => {
+                    const serviceInfo = appState.data.services.find(serv => serv.id === s.serviceId);
+                    const employeeInfo = appState.data.employees.find(emp => emp.id === s.employeeId);
+                    const totalPayout = (s.payouts || []).reduce((sum, p) => sum + p.amount, 0);
+                    const transactionDate = s.assignedAt?.toDate ? s.assignedAt.toDate() : new Date(s.assignedAt || c.createdAt?.toDate() || Date.now());
+
+                    allRevenueItems.push({
+                        type: 'Service', customerName: c.name,
+                        serviceName: serviceInfo?.name || 'N/A',
+                        employeeName: employeeInfo?.name || 'N/A',
+                        employeeId: s.employeeId, serviceId: s.serviceId,
+                        date: transactionDate,
+                        totalCost: s.totalCost || 0, totalPayout,
+                        profit: (s.totalCost || 0) - totalPayout,
+                    });
+                });
+
+                 // 2. Process Subscriptions
+                (c.subscriptions || []).forEach(sub => {
+                    if (sub.price > 0) {
+                        const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
+                        const transactionDate = sub.startDate ? new Date(sub.startDate) : new Date(c.createdAt?.toDate() || Date.now());
+                        allRevenueItems.push({
+                            type: 'Subscription', customerName: c.name,
+                            serviceName: `Sub: ${subInfo?.name || 'N/A'}`,
+                            employeeName: 'N/A',
+                            subscriptionId: sub.subscriptionId,
+                            date: transactionDate,
+                            totalCost: sub.price, totalPayout: 0,
+                            profit: sub.price,
+                        });
+                    }
+                });
+            });
+
+            // 3. Filtering
+            const employeeFilter = appState.filters.payouts_employee || '';
+            const serviceFilter = appState.filters.payouts_service || '';
+            const subscriptionFilter = appState.filters.payouts_subscription || '';
+            const dateRangeFilter = appState.filters.payouts_dateRange || 'all';
+
+            const dateFilterFn = (itemDate) => {
+                let dateMatch = true;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const itemD = new Date(itemDate);
+                itemD.setHours(0,0,0,0);
+
+                if (dateRangeFilter === 'today') {
+                    dateMatch = itemD.getTime() === today.getTime();
+                } else if (dateRangeFilter === 'week') {
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    dateMatch = itemD >= startOfWeek;
+                } else if (dateRangeFilter === 'month') {
+                    dateMatch = itemD.getMonth() === today.getMonth() && itemD.getFullYear() === today.getFullYear();
+                } else if (dateRangeFilter === 'year') {
+                    dateMatch = itemD.getFullYear() === today.getFullYear();
+                } else if (dateRangeFilter === 'custom') {
+                    const startDate = appState.filters.payouts_startDate ? new Date(appState.filters.payouts_startDate) : null;
+                    const endDate = appState.filters.payouts_endDate ? new Date(appState.filters.payouts_endDate) : null;
+                    if(startDate) startDate.setHours(0,0,0,0);
+                    if(endDate) endDate.setHours(23,59,59,999);
+                    dateMatch = (!startDate || itemD >= startDate) && (!endDate || itemD <= endDate);
+                }
+                return dateMatch;
+            };
+
+            const filteredData = allRevenueItems.filter(t => {
+                const employeeMatch = !employeeFilter || t.employeeId === employeeFilter;
+                const serviceMatch = !serviceFilter || t.serviceId === serviceFilter;
+                const subscriptionMatch = !subscriptionFilter || t.subscriptionId === subscriptionFilter;
+                const dateMatch = dateFilterFn(t.date);
+                return employeeMatch && serviceMatch && subscriptionMatch && dateMatch;
+            });
+            
+            const filteredExpenses = appState.data.expenses.filter(e => dateFilterFn(e.date));
+            
+            // 4. Summary Calculation
+            const summary = filteredData.reduce((acc, curr) => {
+                if (curr.type === 'Service') {
+                    acc.serviceRevenue += curr.totalCost;
+                    acc.servicePayouts += curr.totalPayout;
+                } else if (curr.type === 'Subscription') {
+                    acc.subscriptionRevenue += curr.totalCost;
+                }
+                return acc;
+            }, { serviceRevenue: 0, servicePayouts: 0, subscriptionRevenue: 0 });
+
+            summary.totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+            summary.serviceProfit = summary.serviceRevenue - summary.servicePayouts;
+            summary.totalGrossProfit = summary.serviceProfit + summary.subscriptionRevenue;
+            summary.netProfit = summary.totalGrossProfit - summary.totalExpenses;
+            
+            let employeeTotalPayout = 0;
+            if (employeeFilter) {
+                employeeTotalPayout = filteredData
+                    .filter(item => item.employeeId === employeeFilter)
+                    .reduce((sum, item) => sum + item.totalPayout, 0);
+            }
+
+            return `
+                <div class="mb-6"><h2 class="text-2xl font-semibold">Payouts & Profit Analysis</h2></div>
+                
+                <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium">By Employee</label>
+                            <select id="payout-employee-filter" class="w-full p-2 border rounded-md mt-1">
+                                <option value="">All Employees</option>
+                                ${appState.data.employees.map(e => `<option value="${e.id}" ${employeeFilter === e.id ? 'selected' : ''}>${e.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">By Service</label>
+                            <select id="payout-service-filter" class="w-full p-2 border rounded-md mt-1">
+                                <option value="">All Services</option>
+                                ${appState.data.services.map(s => `<option value="${s.id}" ${serviceFilter === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">By Subscription</label>
+                            <select id="payout-subscription-filter" class="w-full p-2 border rounded-md mt-1">
+                                <option value="">All Subscriptions</option>
+                                ${appState.data.subscriptions.map(s => `<option value="${s.id}" ${subscriptionFilter === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">By Date</label>
+                            <select id="payout-date-filter" class="w-full p-2 border rounded-md mt-1">
+                                <option value="all" ${dateRangeFilter === 'all' ? 'selected' : ''}>All Time</option>
+                                <option value="today" ${dateRangeFilter === 'today' ? 'selected' : ''}>Today</option>
+                                <option value="week" ${dateRangeFilter === 'week' ? 'selected' : ''}>This Week</option>
+                                <option value="month" ${dateRangeFilter === 'month' ? 'selected' : ''}>This Month</option>
+                                <option value="year" ${dateRangeFilter === 'year' ? 'selected' : ''}>This Year</option>
+                                <option value="custom" ${dateRangeFilter === 'custom' ? 'selected' : ''}>Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="custom-date-range-inputs" class="grid grid-cols-2 gap-4 mt-4 ${dateRangeFilter === 'custom' ? '' : 'hidden'}">
+                         <div><label class="block text-sm font-medium">Start Date</label><input type="date" id="payout-start-date" value="${appState.filters.payouts_startDate || ''}" class="w-full p-2 border rounded-md mt-1"></div>
+                         <div><label class="block text-sm font-medium">End Date</label><input type="date" id="payout-end-date" value="${appState.filters.payouts_endDate || ''}" class="w-full p-2 border rounded-md mt-1"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <h4 class="text-slate-500">Gross Profit (Services)</h4>
+                        <p class="text-2xl font-bold text-blue-600">${formatCurrency(summary.serviceProfit)}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <h4 class="text-slate-500">Gross Profit (Subs)</h4>
+                        <p class="text-2xl font-bold text-purple-600">${formatCurrency(summary.subscriptionRevenue)}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <h4 class="text-slate-500">Total Expenses</h4>
+                        <p class="text-2xl font-bold text-red-600">-${formatCurrency(summary.totalExpenses)}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <h4 class="text-slate-500">Net Profit</h4>
+                        <p class="text-2xl font-bold text-green-600">${formatCurrency(summary.netProfit)}</p>
+                    </div>
+                    ${employeeFilter ? `
+                        <div class="bg-white p-4 rounded-lg shadow-md text-center md:col-span-2 lg:col-span-4">
+                            <h4 class="text-slate-500">Total Payouts to ${appState.data.employees.find(e=>e.id === employeeFilter)?.name}</h4>
+                            <p class="text-2xl font-bold text-orange-600">${formatCurrency(employeeTotalPayout)}</p>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="overflow-x-auto">
+                         <table class="w-full text-left">
+                             <thead><tr class="border-b bg-slate-50"><th class="p-3">Customer</th><th class="p-3">Item</th><th class="p-3">Type</th><th class="p-3">Revenue</th><th class="p-3">Payout</th><th class="p-3">Profit</th></tr></thead>
+                             <tbody>
+                                 ${filteredData.map(data => `
+                                     <tr class="border-b hover:bg-slate-50">
+                                         <td class="p-3">${data.customerName}</td>
+                                         <td class="p-3">${data.serviceName}</td>
+                                         <td class="p-3"><span class="px-2 py-1 text-xs rounded-full ${data.type === 'Service' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">${data.type}</span></td>
+                                         <td class="p-3">${formatCurrency(data.totalCost)}</td>
+                                         <td class="p-3 text-red-600">${formatCurrency(data.totalPayout)}</td>
+                                         <td class="p-3 text-green-600 font-semibold">${formatCurrency(data.profit)}</td>
+                                     </tr>
+                                 `).join('') || `<tr><td colspan="6" class="text-center p-4">No data found for the selected filters.</td></tr>`}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>`;
+        }
+        
+        renderFunctions.subscriptions = () => {
+              return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Manage Subscription Plans</h2>
+                    <button id="add-subscription-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Plan</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="overflow-x-auto">
+                         <table class="w-full text-left">
+                             <thead>
+                                 <tr class="border-b bg-slate-50">
+                                     <th class="p-3">Plan</th>
+                                     <th class="p-3">Prices</th>
+                                     <th class="p-3">Active Count</th>
+                                     <th class="p-3 text-right">Actions</th>
+                                 </tr>
+                            </thead>
+                             <tbody>
+                                 ${appState.data.subscriptions.map(sub => {
+                                     const activeCustomers = appState.data.customers.filter(c => c.subscriptions && c.subscriptions.some(s => s.subscriptionId === sub.id));
+                                     return `
+                                     <tr class="border-b hover:bg-slate-50">
+                                         <td class="p-3">${sub.name}</td>
+                                         <td class="p-3 text-xs">
+                                             <div>1M: ${formatCurrency(sub.monthlyPrice)}</div>
+                                             <div>3M: ${formatCurrency(sub.quarterlyPrice)}</div>
+                                             <div>6M: ${formatCurrency(sub.sixMonthPrice)}</div>
+                                             <div>12M: ${formatCurrency(sub.yearlyPrice)}</div>
+                                         </td>
+                                         <td class="p-3">
+                                             <span class="font-bold text-lg">${activeCustomers.length}</span>
+                                             ${activeCustomers.length > 0 ? `<button class="view-sub-customers-btn text-blue-600 text-sm ml-2" data-id="${sub.id}">View</button>` : ''}
+                                         </td>
+                                         <td class="p-3 text-right">
+                                             <button class="edit-subscription-btn text-blue-600 mr-2" data-id="${sub.id}">Edit</button>
+                                             <button class="delete-subscription-btn text-red-600" data-id="${sub.id}" data-name="${sub.name}">Delete</button>
+                                         </td>
+                                     </tr>
+                                 `}).join('') || `<tr><td colspan="4" class="text-center p-4">No subscription plans found.</td></tr>`}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>`;
+        };
+        
+        function handleSubscriptionForm(id = null) {
+            const sub = id ? appState.data.subscriptions.find(s => s.id === id) : {};
+            const formContent = `
+                <div class="mb-4"><label>Plan Name</label><input type="text" id="sub-name" value="${sub.name || ''}" required></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label>Monthly Price</label><input type="number" id="sub-monthly" value="${sub.monthlyPrice || ''}"></div>
+                    <div><label>Quarterly Price</label><input type="number" id="sub-quarterly" value="${sub.quarterlyPrice || ''}"></div>
+                    <div><label>6-Month Price</label><input type="number" id="sub-six-month" value="${sub.sixMonthPrice || ''}"></div>
+                    <div><label>Yearly Price</label><input type="number" id="sub-yearly" value="${sub.yearlyPrice || ''}"></div>
+                </div>
+                ${getCustomFieldsHTML(sub.customFields)}
+                 `.replaceAll('<label>', '<label class="block text-sm font-medium">').replaceAll('<input', '<input class="w-full p-2 border rounded-md mt-1"');
+             openModal(id ? 'Edit Plan' : 'Add Plan', formContent, 'subscription-form', async () => {
+                const data = {
+                    name: $('#sub-name').value, 
+                    monthlyPrice: parseFloat($('#sub-monthly').value) || 0,
+                    quarterlyPrice: parseFloat($('#sub-quarterly').value) || 0,
+                    sixMonthPrice: parseFloat($('#sub-six-month').value) || 0, 
+                    yearlyPrice: parseFloat($('#sub-yearly').value) || 0,
+                    customFields: getCustomFieldsDataFromForm()
+                };
+                if (id) await updateItem('subscriptions', id, data); else await addItem('subscriptions', data);
+            });
+            attachCustomFieldHandlers();
+        }
+        
+        function handleAssignSubscriptionForm(customerId) {
+            const formContent = `
+                <div><label>Plan</label><select id="assign-sub-id" required>${appState.data.subscriptions.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+                <div><label>Start Date</label><input type="date" id="assign-sub-start" value="${new Date().toISOString().split('T')[0]}" required></div>
+                <div><label>Duration</label><select id="assign-sub-duration" required>
+                    <option value="1">1 Month</option>
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="12">12 Months</option>
+                </select></div>
+                <div id="subscription-price-display" class="mt-4 font-semibold"></div>
+                <div><label>Amount Paid</label><input type="number" id="assign-sub-paid" value="0"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium">').replaceAll('<input', '<input class="w-full p-2 border rounded-md mt-1"').replaceAll('<select', '<select class="w-full p-2 border rounded-md mt-1"');
+            
+            openModal('Assign Subscription', formContent, 'assign-sub-form', async () => {
+                const customer = appState.data.customers.find(c => c.id === customerId);
+                const subId = $('#assign-sub-id').value;
+                const subInfo = appState.data.subscriptions.find(s => s.id === subId);
+                const startDate = new Date($('#assign-sub-start').value);
+                const duration = parseInt($('#assign-sub-duration').value);
+                const endDate = new Date(startDate);
+                endDate.setMonth(endDate.getMonth() + duration);
+                
+                let price = 0;
+                if (duration === 1) price = subInfo.monthlyPrice;
+                else if (duration === 3) price = subInfo.quarterlyPrice;
+                else if (duration === 6) price = subInfo.sixMonthPrice;
+                else if (duration === 12) price = subInfo.yearlyPrice;
+
+                const amountPaid = parseFloat($('#assign-sub-paid').value) || 0;
+                const newSub = { 
+                    subscriptionId: subId, 
+                    startDate: startDate.toISOString(), 
+                    endDate: endDate.toISOString(),
+                    price: price,
+                    payments: [],
+                    renewalNoticesSent: {}
+                };
+                if (amountPaid > 0) {
+                    newSub.payments.push({ amount: amountPaid, date: new Date().toISOString(), notes: 'Initial subscription payment' });
+                }
+                const updatedSubscriptions = [...(customer.subscriptions || []), newSub];
+                await updateItem('customers', customerId, { subscriptions: updatedSubscriptions });
+            });
+            
+            const updatePrice = () => {
+                const subId = $('#assign-sub-id').value;
+                const duration = parseInt($('#assign-sub-duration').value);
+                if (!subId) return;
+                const subInfo = appState.data.subscriptions.find(s => s.id === subId);
+                let price = 0;
+                if (duration === 1) price = subInfo.monthlyPrice;
+                else if (duration === 3) price = subInfo.quarterlyPrice;
+                else if (duration === 6) price = subInfo.sixMonthPrice;
+                else if (duration === 12) price = subInfo.yearlyPrice;
+                $('#subscription-price-display').textContent = `Price: ${formatCurrency(price)}`;
+                $('#assign-sub-paid').value = price;
+            };
+            
+            $('#assign-sub-id').onchange = updatePrice;
+            $('#assign-sub-duration').onchange = updatePrice;
+            updatePrice(); // Initial call
+        }
+
+        function handleAddSubscriptionPaymentForm(customerId, subscriptionIndex) {
+            const customer = appState.data.customers.find(c => c.id === customerId);
+            const sub = customer.subscriptions[subscriptionIndex];
+            const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+            const balanceDue = (sub.price || 0) - subPaid;
+
+            const formContent = `
+                <div class="mb-4"><p>Balance due: <strong>${formatCurrency(balanceDue)}</strong></p></div>
+                <div><label>Payment Amount</label><input type="number" id="sub-payment-amount" value="${balanceDue.toFixed(2)}" required></div>
+                <div><label>Payment Date</label><input type="date" id="sub-payment-date" value="${new Date().toISOString().split('T')[0]}" required></div>
+                <div><label>Notes</label><input type="text" id="sub-payment-notes"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium">').replaceAll('<input', '<input class="w-full p-2 border rounded-md mt-1"');
+            
+            openModal('Add Subscription Payment', formContent, 'add-sub-payment-form', async () => {
+                const newPayment = {
+                    amount: parseFloat($('#sub-payment-amount').value) || 0,
+                    date: new Date($('#sub-payment-date').value).toISOString(),
+                    notes: $('#sub-payment-notes').value
+                };
+                const updatedSubscriptions = [...customer.subscriptions];
+                if (!updatedSubscriptions[subscriptionIndex].payments) updatedSubscriptions[subscriptionIndex].payments = [];
+                updatedSubscriptions[subscriptionIndex].payments.push(newPayment);
+                await updateItem('customers', customerId, { subscriptions: updatedSubscriptions });
+            });
+        }
+
+        renderFunctions.invoices = () => {
+             const filterText = (appState.filters.invoices || '').toLowerCase();
+                const filteredData = appState.data.invoices.filter(item => {
+                    const customer = appState.data.customers.find(c => c.id === item.customerId);
+                    return (customer && customer.name.toLowerCase().includes(filterText)) || (item.invoiceNumber && item.invoiceNumber.toLowerCase().includes(filterText));
+                });
+
+                 return `
+                 <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                     <h2 class="text-2xl font-semibold">Invoices & Quotes</h2>
+                 </div>
+                 <div class="mb-4"><input type="text" id="filter-input" data-view="invoices" placeholder="Search by customer or invoice #" class="w-full p-2 border rounded-md" value="${appState.filters.invoices || ''}"></div>
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                      <div class="overflow-x-auto">
+                          <table class="w-full text-left">
+                              <thead><tr class="border-b bg-slate-50"><th class="p-3">#</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+                              <tbody>${filteredData.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(inv => {
+                                  let statusColor = 'bg-red-100 text-red-700';
+                                  if (inv.status === 'Paid') statusColor = 'bg-green-100 text-green-700';
+                                  if (inv.status === 'Partially Paid') statusColor = 'bg-yellow-100 text-yellow-700';
+                                  return `
+                                 <tr class="border-b hover:bg-slate-50">
+                                     <td class="p-3">${inv.invoiceNumber}</td>
+                                     <td>${appState.data.customers.find(c => c.id === inv.customerId)?.name || 'N/A'}</td>
+                                     <td>${formatDate(inv.date)}</td><td>${formatCurrency(inv.totalAmount)}</td>
+                                     <td><span class="px-2 py-1 text-xs rounded-full ${statusColor}">${inv.status}</span></td>
+                                     <td class="text-right">
+                                         <button class="view-invoice-btn text-blue-600" data-id="${inv.id}">View/Manage</button>
+                                         <button class="delete-invoice-btn text-red-600 ml-2" data-id="${inv.id}" data-name="${inv.invoiceNumber}">Delete</button>
+                                     </td>
+                                 </tr>`}).join('') || `<tr><td colspan="6" class="text-center p-4">No invoices found.</td></tr>`}</tbody>
+                          </table>
+                     </div>
+                 </div>`;
+        };
+
+        async function generateInvoiceId() {
+            const counterRef = doc(appState.db, getCollectionPath('counters'), 'invoiceCounter');
+            let nextId;
+            try {
+                await runTransaction(appState.db, async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+                    const today = new Date();
+                    const datePrefix = `${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
+                    
+                    if (!counterDoc.exists() || counterDoc.data().prefix !== datePrefix) {
+                        nextId = 1;
+                        transaction.set(counterRef, { prefix: datePrefix, count: nextId });
+                    } else {
+                        nextId = counterDoc.data().count + 1;
+                        transaction.update(counterRef, { count: nextId });
+                    }
+                });
+                const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                return `${datePart}-${nextId.toString().padStart(4, '0')}`;
+            } catch (e) {
+                console.error("Transaction failed: ", e);
+                return `INV-${Date.now()}`; // Fallback
+            }
+        }
+        
+        async function handleCreateInvoiceForm(customerId) {
+            const customer = appState.data.customers.find(c => c.id === customerId);
+            if (!customer) return;
+
+            const billableItems = [];
+            (customer.assignedServices || []).forEach((service, index) => {
+                const serviceInfo = appState.data.services.find(s => s.id === service.serviceId);
+                const paid = (service.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                const balance = (service.totalCost || 0) - paid;
+                if (balance > 0.01) { // Use a small threshold for floating point issues
+                    billableItems.push({ sourceType: 'service', sourceIndex: index, description: serviceInfo?.name || 'Deleted Service', totalCost: service.totalCost || 0, paid, balance });
+                }
+            });
+
+            (customer.subscriptions || []).forEach((sub, index) => {
+                 if (sub.price) {
+                     const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                     const subBalance = (sub.price || 0) - subPaid;
+                     if (subBalance > 0.01) {
+                         const subInfo = appState.data.subscriptions.find(s=>s.id===sub.subscriptionId);
+                         billableItems.push({ sourceType: 'subscription', sourceIndex: index, description: `Subscription: ${subInfo?.name || 'N/A'}`, totalCost: sub.price || 0, paid: subPaid, balance: subBalance });
+                     }
+                 }
+            });
+
+            if (billableItems.length === 0) {
+                return showToast("This customer has no outstanding balance to invoice.", true);
+            }
+            
+            const formContent = `
+                <p class="mb-4">Select items for <strong>${customer.name}</strong>.</p>
+                <div class="space-y-2 max-h-60 overflow-y-auto border p-2 rounded-md">
+                   ${billableItems.map((item, idx) => `
+                       <label class="flex items-center p-2 rounded hover:bg-slate-100">
+                           <input type="checkbox" class="invoice-item-checkbox mr-3" value="${idx}" checked>
+                           <span class="flex-1">${item.description} - Balance: ${formatCurrency(item.balance)}</span>
+                       </label>
+                   `).join('')}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div><label class="block text-sm font-medium">Date</label><input type="date" id="invoice-date" value="${new Date().toISOString().split('T')[0]}" class="w-full p-2 border rounded-md mt-1"></div>
+                    <div><label class="block text-sm font-medium">Due Date</label><input type="date" id="invoice-due-date" class="w-full p-2 border rounded-md mt-1"></div>
+                </div>`;
+            
+            openModal('Create Invoice/Quote', formContent, 'invoice-form', async () => {
+                const items = [];
+                $$('.invoice-item-checkbox:checked').forEach(cb => {
+                    const billableItemIndex = parseInt(cb.value);
+                    const item = billableItems[billableItemIndex];
+                    if (item) {
+                        items.push({ 
+                            description: item.description, 
+                            totalCost: item.totalCost, 
+                            paid: item.paid, 
+                            balance: item.balance,
+                            // Add source reference for syncing later
+                            sourceType: item.sourceType, 
+                            sourceIndex: item.sourceIndex 
+                        });
+                    }
+                });
+
+                if (items.length === 0) {
+                    showToast("No items selected for the invoice.", true);
+                    throw new Error("No items selected");
+                }
+
+                const totalAmount = items.reduce((sum, item) => sum + item.balance, 0);
+                const dueDateValue = $('#invoice-due-date').value;
+                const newInvoiceId = await generateInvoiceId();
+
+                const invoiceData = { 
+                    customerId, invoiceNumber: newInvoiceId,
+                    date: new Date($('#invoice-date').value).toISOString(), 
+                    dueDate: dueDateValue ? new Date(dueDateValue).toISOString() : null,
+                    items, totalAmount, amountPaid: 0, payments: [], status: 'Unpaid' 
+                };
+                await addItem('invoices', invoiceData);
+                window.location.hash = '#invoices';
+            });
+        }
+        
+        async function renderInvoicePreview(invoiceId) {
+            const invoice = appState.data.invoices.find(i => i.id === invoiceId);
+            if (!invoice) return $('#main-content').innerHTML = '<p>Invoice not found.</p>';
+
+            const customer = appState.data.customers.find(c => c.id === invoice.customerId);
+            const balanceDue = (invoice.totalAmount || 0) - (invoice.amountPaid || 0);
+
+            const content = `
+            <div id="invoice-print-area" class="bg-white p-10 font-sans">
+                <header class="flex justify-between items-start pb-6 border-b-2 border-gray-100">
+                    <div>
+                        <h1 class="text-4xl font-bold text-gray-800">INVOICE</h1>
+                        <p class="text-gray-500">${invoice.invoiceNumber}</p>
+                    </div>
+                    <div class="text-right">
+                        <h2 class="text-xl font-semibold text-gray-700">${appState.settings.appName}</h2>
+                        <p class="text-sm text-gray-500 whitespace-pre-line">${appState.settings.companyAddress}</p>
+                    </div>
+                </header>
+                <section class="flex justify-between mt-8">
+                    <div>
+                        <h3 class="font-semibold text-gray-500 uppercase tracking-wider text-sm mb-2">Bill To</h3>
+                        <p class="font-bold text-gray-800">${customer.name}</p>
+                        <p class="text-gray-600">${customer.email}</p>
+                         <p class="text-gray-600">${customer.phone}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="mb-2"><span class="font-semibold text-gray-500">Date:</span> <span class="text-gray-800">${formatDate(invoice.date)}</span></div>
+                        <div><span class="font-semibold text-gray-500">Due Date:</span> <span class="text-gray-800">${formatDate(invoice.dueDate)}</span></div>
+                    </div>
+                </section>
+                <section class="mt-8">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr class="text-left text-gray-500 uppercase text-sm">
+                                <th class="p-3">Description</th>
+                                <th class="p-3 text-right">Total Cost</th>
+                                <th class="p-3 text-right">Previously Paid</th>
+                                <th class="p-3 text-right">Amount Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        ${(invoice.items || []).map(item => `
+                            <tr class="border-b border-gray-100">
+                                <td class="p-3">${item.description}</td>
+                                <td class="p-3 text-right">${formatCurrency(item.totalCost)}</td>
+                                <td class="p-3 text-right text-green-600">${item.paid > 0 ? `-${formatCurrency(item.paid)}` : formatCurrency(0)}</td>
+                                <td class="p-3 text-right font-semibold">${formatCurrency(item.balance)}</td>
+                            </tr>
+                        `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="font-semibold text-gray-800"><td colspan="3" class="p-3 text-right">Subtotal</td><td class="p-3 text-right">${formatCurrency(invoice.totalAmount)}</td></tr>
+                            <tr class="font-semibold text-gray-800"><td colspan="3" class="p-3 text-right">Paid on this Invoice</td><td class="p-3 text-right">${formatCurrency(invoice.amountPaid)}</td></tr>
+                            <tr class="font-bold text-gray-800 bg-gray-100"><td colspan="3" class="p-3 text-right">Balance Due</td><td class="p-3 text-right text-xl">${formatCurrency(balanceDue)}</td></tr>
+                        </tfoot>
+                    </table>
+                </section>
+                <footer class="mt-10 text-center text-sm text-gray-400"><p>Thank you for your business!</p></footer>
+            </div>`;
+            
+            const modalTitle = `
+                <div class="flex items-center justify-between w-full">
+                    <span>Invoice ${invoice.invoiceNumber}</span>
+                    <div class="space-x-2">
+                         <button id="invoice-action-pdf" class="bg-red-500 text-white px-3 py-1 rounded-md text-sm">PDF</button>
+                         <button id="invoice-action-whatsapp" class="bg-green-500 text-white px-3 py-1 rounded-md text-sm">WhatsApp</button>
+                         <button id="invoice-action-payment" class="bg-blue-500 text-white px-3 py-1 rounded-md text-sm">Add Payment</button>
+                    </div>
+                </div>`;
+
+            openModal(modalTitle, content, 'invoice-preview-form', e => e.preventDefault());
+            $('#invoice-preview-form').parentElement.nextElementSibling.style.display = 'none';
+
+            $('#invoice-action-pdf').onclick = () => {
+                 const { jsPDF } = window.jspdf;
+                 html2canvas($('#invoice-print-area')).then(canvas => {
+                     const imgData = canvas.toDataURL('image/png');
+                     const pdf = new jsPDF('p', 'mm', 'a4');
+                     const pdfWidth = pdf.internal.pageSize.getWidth();
+                     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                     pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
+                 });
+            };
+
+            $('#invoice-action-whatsapp').onclick = () => {
+                const message = encodeURIComponent(`Hello ${customer.name}, please find your invoice ${invoice.invoiceNumber} attached. Total amount due: ${formatCurrency(balanceDue)}. Thank you!`);
+                window.open(`https://wa.me/${customer.phone}?text=${message}`, '_blank');
+                showToast("Opening WhatsApp. Please attach the downloaded PDF manually.");
+            };
+            $('#invoice-action-payment').onclick = () => handleAddInvoicePaymentForm(invoiceId);
+        }
+
+        async function handleAddInvoicePaymentForm(invoiceId) {
+            const invoice = appState.data.invoices.find(i => i.id === invoiceId);
+            const balanceDue = (invoice.totalAmount || 0) - (invoice.amountPaid || 0);
+
+            const formContent = `
+                <div class="mb-4"><p>Balance due: <strong>${formatCurrency(balanceDue)}</strong></p></div>
+                <div class="mb-4"><label class="block text-sm font-medium">Payment Amount</label><input type="number" id="invoice-payment-amount" value="${balanceDue.toFixed(2)}" class="w-full p-2 border rounded-md mt-1" required></div>
+                <div class="mb-4"><label class="block text-sm font-medium">Payment Date</label><input type="date" id="invoice-payment-date" value="${new Date().toISOString().split('T')[0]}" class="w-full p-2 border rounded-md mt-1" required></div>
+            `;
+            
+            openModal('Add Payment to Invoice', formContent, 'invoice-payment-form', async () => {
+                let paymentAmount = parseFloat($('#invoice-payment-amount').value) || 0;
+                const paymentDate = new Date($('#invoice-payment-date').value).toISOString();
+                
+                // 1. Update Invoice
+                const newAmountPaid = (invoice.amountPaid || 0) + paymentAmount;
+                const newPayments = [...(invoice.payments || []), { amount: paymentAmount, date: paymentDate }];
+                let newStatus = newAmountPaid >= invoice.totalAmount ? 'Paid' : 'Partially Paid';
+                
+                await updateItem('invoices', invoiceId, { amountPaid: newAmountPaid, payments: newPayments, status: newStatus });
+                
+                // 2. Sync payment back to customer services/subscriptions
+                const customer = appState.data.customers.find(c => c.id === invoice.customerId);
+                if (customer) {
+                    const updatedCustomer = JSON.parse(JSON.stringify(customer)); // Deep copy to avoid mutation
+                    
+                    for (const item of invoice.items) {
+                        if (paymentAmount <= 0) break;
+
+                        if (item.sourceType === 'service') {
+                            const service = updatedCustomer.assignedServices[item.sourceIndex];
+                            if (service) {
+                                const servicePaid = (service.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                const serviceBalance = (service.totalCost || 0) - servicePaid;
+                                const amountToApply = Math.min(paymentAmount, serviceBalance);
+                                
+                                if (amountToApply > 0) {
+                                    if (!service.payments) service.payments = [];
+                                    service.payments.push({ amount: amountToApply, date: paymentDate, notes: `From invoice ${invoice.invoiceNumber}` });
+                                    paymentAmount -= amountToApply;
+                                }
+                            }
+                        } else if (item.sourceType === 'subscription') {
+                            const sub = updatedCustomer.subscriptions[item.sourceIndex];
+                            if (sub) {
+                                const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                                const subBalance = (sub.price || 0) - subPaid;
+                                const amountToApply = Math.min(paymentAmount, subBalance);
+
+                                if (amountToApply > 0) {
+                                    if (!sub.payments) sub.payments = [];
+                                    sub.payments.push({ amount: amountToApply, date: paymentDate, notes: `From invoice ${invoice.invoiceNumber}` });
+                                    paymentAmount -= amountToApply;
+                                }
+                            }
+                        }
+                    }
+                    await updateItem('customers', customer.id, updatedCustomer);
+                }
+            });
+        }
+        
+        renderFunctions.expenses = () => {
+            const filterText = (appState.filters.expenses || '').toLowerCase();
+            const filteredData = appState.data.expenses.filter(item => 
+                item.name.toLowerCase().includes(filterText) || 
+                (item.category && item.category.toLowerCase().includes(filterText))
+            );
+
+            return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Manage Expenses</h2>
+                    <button id="add-expense-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Expense</button>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="expenses" placeholder="Search by name or category..." class="w-full p-2 border rounded-md" value="${appState.filters.expenses || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-slate-50">
+                                    <th class="p-3">Expense</th>
+                                    <th class="p-3">Category</th>
+                                    <th class="p-3">Date</th>
+                                    <th class="p-3">Amount</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredData.length > 0 ? filteredData.sort((a,b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                                    <tr class="border-b hover:bg-slate-50">
+                                        <td class="p-3">${exp.name}</td>
+                                        <td class="p-3">${exp.category}</td>
+                                        <td class="p-3">${formatDate(exp.date)}</td>
+                                        <td class="p-3">${formatCurrency(exp.amount)}</td>
+                                        <td class="p-3 text-right">
+                                            <button class="edit-expense-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${exp.id}">Edit</button>
+                                            <button class="delete-expense-btn text-red-600 hover:text-red-800" data-id="${exp.id}" data-name="${exp.name}">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('') : `<tr><td colspan="5" class="text-center p-4 text-slate-500">No expenses found.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        };
+
+        function handleExpenseForm(id = null) {
+            const expense = id ? appState.data.expenses.find(e => e.id === id) : {};
+            const formContent = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label>Expense Name</label><input type="text" id="expense-name" value="${expense.name || ''}" required></div>
+                    <div><label>Category</label><input type="text" id="expense-category" value="${expense.category || ''}" required></div>
+                    <div><label>Amount (INR)</label><input type="number" id="expense-amount" value="${expense.amount || ''}" required></div>
+                    <div><label>Date</label><input type="date" id="expense-date" value="${expense.date || new Date().toISOString().split('T')[0]}" required></div>
+                </div>
+            `.replaceAll('<label>', '<label class="block text-sm font-medium mb-1">').replaceAll('<input', '<input class="w-full p-2 border rounded-md mt-1"');
+            
+            openModal(id ? 'Edit Expense' : 'Add Expense', formContent, 'expense-form', async () => {
+                const data = {
+                    name: $('#expense-name').value,
+                    category: $('#expense-category').value,
+                    amount: parseFloat($('#expense-amount').value) || 0,
+                    date: $('#expense-date').value
+                };
+                if (id) await updateItem('expenses', id, data);
+                else await addItem('expenses', data);
+            });
+        }
+        
+        renderFunctions.tasks = () => {
+            const filterText = (appState.filters.tasks || '').toLowerCase();
+            const filteredData = appState.data.tasks.filter(item => 
+                item.name.toLowerCase().includes(filterText)
+            );
+
+            return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Tasks & Goals</h2>
+                    <button id="add-task-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Task/Goal</button>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="tasks" placeholder="Search..." class="w-full p-2 border rounded-md" value="${appState.filters.tasks || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-slate-50">
+                                    <th class="p-3">Task/Goal</th>
+                                    <th class="p-3">Type</th>
+                                    <th class="p-3">Assigned To</th>
+                                    <th class="p-3">Due Date</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredData.length > 0 ? filteredData.sort((a,b) => (new Date(a.dueDate) - new Date(b.dueDate))).map(task => {
+                                    const employee = appState.data.employees.find(e => e.id === task.assigneeId);
+                                    let statusColor = 'bg-slate-100 text-slate-700';
+                                    if (task.status === 'Done') statusColor = 'bg-green-100 text-green-700';
+                                    if (task.status === 'In Progress') statusColor = 'bg-yellow-100 text-yellow-700';
+                                    return `
+                                        <tr class="border-b hover:bg-slate-50">
+                                            <td class="p-3">${task.name}</td>
+                                            <td class="p-3">${task.type || 'Task'}</td>
+                                            <td class="p-3">${employee?.name || 'N/A'}</td>
+                                            <td class="p-3">${formatDate(task.dueDate)}</td>
+                                            <td class="p-3"><span class="px-2 py-1 text-xs rounded-full ${statusColor}">${task.status}</span></td>
+                                            <td class="p-3 text-right">
+                                                <button class="edit-task-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${task.id}">Edit</button>
+                                                <button class="delete-task-btn text-red-600 hover:text-red-800" data-id="${task.id}" data-name="${task.name}">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `
+                                }).join('') : `<tr><td colspan="6" class="text-center p-4 text-slate-500">No tasks found.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        };
+
+        function handleTaskForm(id = null) {
+            const task = id ? appState.data.tasks.find(t => t.id === id) : {};
+            const formContent = `
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700">Name</label>
+                    <input type="text" id="task-name" value="${task.name || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm" required>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                     <div>
+                        <label class="block text-sm font-medium">Type</label>
+                        <select id="task-type" class="mt-1 block w-full p-2 border rounded-md">
+                            <option value="Task" ${task.type === 'Task' ? 'selected' : ''}>Task</option>
+                            <option value="Goal" ${task.type === 'Goal' ? 'selected' : ''}>Goal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Recurrence</label>
+                        <select id="task-recurrence" class="mt-1 block w-full p-2 border rounded-md">
+                            <option value="none" ${!task.recurrence || task.recurrence === 'none' ? 'selected' : ''}>None</option>
+                            <option value="daily" ${task.recurrence === 'daily' ? 'selected' : ''}>Daily</option>
+                            <option value="weekly" ${task.recurrence === 'weekly' ? 'selected' : ''}>Weekly</option>
+                            <option value="monthly" ${task.recurrence === 'monthly' ? 'selected' : ''}>Monthly</option>
+                            <option value="yearly" ${task.recurrence === 'yearly' ? 'selected' : ''}>Yearly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Assign To</label>
+                        <select id="task-assignee" class="mt-1 block w-full p-2 border rounded-md shadow-sm">
+                            <option value="">-- Unassigned --</option>
+                            ${appState.data.employees.map(e => `<option value="${e.id}" ${task.assigneeId === e.id ? 'selected' : ''}>${e.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Due Date</label>
+                        <input type="date" id="task-due-date" value="${task.dueDate || ''}" class="mt-1 block w-full p-2 border rounded-md shadow-sm">
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-slate-700">Status</label>
+                        <select id="task-status" class="mt-1 block w-full p-2 border rounded-md shadow-sm">
+                           ${appState.settings.taskStatuses.map(s => `<option value="${s}" ${task.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+            openModal(id ? 'Edit Task/Goal' : 'Add Task/Goal', formContent, 'task-form', async () => {
+                const data = {
+                    name: $('#task-name').value,
+                    type: $('#task-type').value,
+                    recurrence: $('#task-recurrence').value,
+                    assigneeId: $('#task-assignee').value,
+                    dueDate: $('#task-due-date').value,
+                    status: $('#task-status').value,
+                };
+                if (id) await updateItem('tasks', id, data);
+                else await addItem('tasks', data);
+            });
+        }
+
+        renderFunctions.appointments = () => {
+            const filterText = (appState.filters.appointments || '').toLowerCase();
+            const filteredData = appState.data.appointments.filter(item => {
+                let contactName = '';
+                 if (item.customerId) {
+                     const customer = appState.data.customers.find(c => c.id === item.customerId);
+                     if (customer) contactName = customer.name;
+                 } else if (item.leadId) {
+                     const lead = appState.data.leads.find(l => l.id === item.leadId);
+                     if (lead) contactName = lead.name;
+                 }
+                return item.title.toLowerCase().includes(filterText) || contactName.toLowerCase().includes(filterText);
+            });
+
+            return `
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-semibold">Appointments & Follow-ups</h2>
+                    <button id="add-appointment-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Appointment</button>
+                </div>
+                <div class="mb-4"><input type="text" id="filter-input" data-view="appointments" placeholder="Search by title, customer, or lead..." class="w-full p-2 border rounded-md" value="${appState.filters.appointments || ''}"></div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-slate-50">
+                                    <th class="p-3">Title</th>
+                                    <th class="p-3">Contact</th>
+                                    <th class="p-3">Date & Time</th>
+                                    <th class="p-3">Follow-up Date</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredData.length > 0 ? filteredData.sort((a,b) => (new Date(b.dateTime) - new Date(a.dateTime))).map(appt => {
+                                    let contactName = 'N/A';
+                                    let contactType = '';
+                                    if (appt.customerId) {
+                                        const customer = appState.data.customers.find(c => c.id === appt.customerId);
+                                        if (customer) {
+                                            contactName = customer.name;
+                                            contactType = 'Customer';
+                                        }
+                                    } else if (appt.leadId) {
+                                        const lead = appState.data.leads.find(l => l.id === appt.leadId);
+                                        if (lead) {
+                                            contactName = lead.name;
+                                            contactType = 'Lead';
+                                        }
+                                    }
+                                    return `
+                                        <tr class="border-b hover:bg-slate-50">
+                                            <td class="p-3">${appt.title}</td>
+                                            <td class="p-3">
+                                                <div>${contactName}</div>
+                                                <div class="text-xs text-slate-500">${contactType}</div>
+                                            </td>
+                                            <td class="p-3">${formatDateTime(appt.dateTime)}</td>
+                                            <td class="p-3">${formatDate(appt.followUpDate)}</td>
+                                            <td class="p-3 text-right">
+                                                <button class="edit-appointment-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${appt.id}">Edit</button>
+                                                <button class="delete-appointment-btn text-red-600 hover:text-red-800" data-id="${appt.id}" data-name="${appt.title}">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `
+                                }).join('') : `<tr><td colspan="5" class="text-center p-4 text-slate-500">No appointments found.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        };
+        
+        function handleAppointmentForm(id = null) {
+            const appt = id ? appState.data.appointments.find(a => a.id === id) : {};
+            const [datePart, timePart] = appt.dateTime ? new Date(appt.dateTime).toISOString().split('T') : [new Date().toISOString().split('T')[0], ''];
+            const timeValue = timePart ? timePart.substring(0, 5) : '';
+
+            const formContent = `
+                <div class="mb-4">
+                    <label class="block text-sm font-medium">Title</label>
+                    <input type="text" id="appt-title" value="${appt.title || ''}" class="mt-1 block w-full p-2 border rounded-md" required>
+                </div>
+                
+                <div class="mb-4">
+                     <label class="block text-sm font-medium mb-2">Appointment For</label>
+                     <div class="flex items-center space-x-4">
+                         <label class="flex items-center cursor-pointer"><input type="radio" name="appointmentFor" value="customer" class="mr-2" ${appt.customerId || !appt.leadId ? 'checked' : ''}> Customer</label>
+                         <label class="flex items-center cursor-pointer"><input type="radio" name="appointmentFor" value="lead" class="mr-2" ${appt.leadId ? 'checked' : ''}> Lead</label>
+                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div id="customer-select-container" class="${appt.leadId ? 'hidden' : ''}">
+                        <label class="block text-sm font-medium">Customer</label>
+                        <select id="appt-customer" class="mt-1 block w-full p-2 border rounded-md">
+                            <option value="">-- Select Customer --</option>
+                            ${appState.data.customers.map(c => `<option value="${c.id}" ${appt.customerId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                    </div>
+                     <div id="lead-select-container" class="${!appt.leadId ? 'hidden' : ''}">
+                        <label class="block text-sm font-medium">Lead</label>
+                        <select id="appt-lead" class="mt-1 block w-full p-2 border rounded-md">
+                            <option value="">-- Select Lead --</option>
+                            ${appState.data.leads.map(l => `<option value="${l.id}" ${appt.leadId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Assigned To (Optional)</label>
+                        <select id="appt-employee" class="mt-1 block w-full p-2 border rounded-md">
+                             <option value="">-- Select Employee --</option>
+                            ${appState.data.employees.map(e => `<option value="${e.id}" ${appt.employeeId === e.id ? 'selected' : ''}>${e.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Date</label>
+                        <input type="date" id="appt-date" value="${datePart}" class="mt-1 block w-full p-2 border rounded-md" required>
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium">Time</label>
+                        <input type="time" id="appt-time" value="${timeValue}" class="mt-1 block w-full p-2 border rounded-md" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Follow-up Date</label>
+                        <input type="date" id="appt-follow-up" value="${appt.followUpDate || ''}" class="mt-1 block w-full p-2 border rounded-md">
+                    </div>
+                </div>
+                 <div class="mb-4">
+                    <label class="block text-sm font-medium">Notes</label>
+                    <textarea id="appt-notes" rows="3" class="mt-1 block w-full p-2 border rounded-md">${appt.notes || ''}</textarea>
+                </div>
+            `;
+
+            openModal(id ? 'Edit Appointment' : 'Add Appointment', formContent, 'appointment-form', async () => {
+                const date = $('#appt-date').value;
+                const time = $('#appt-time').value;
+                const dateTime = `${date}T${time}`;
+                
+                const appointmentFor = $('input[name="appointmentFor"]:checked').value;
+                let customerId = null;
+                let leadId = null;
+
+                if (appointmentFor === 'customer') {
+                    customerId = $('#appt-customer').value;
+                } else {
+                    leadId = $('#appt-lead').value;
+                }
+
+                if (!customerId && !leadId) {
+                    showToast("Please select a customer or a lead.", true);
+                    throw new Error("No customer or lead selected");
+                }
+                
+                const data = {
+                    title: $('#appt-title').value,
+                    customerId: customerId,
+                    leadId: leadId,
+                    employeeId: $('#appt-employee').value,
+                    dateTime: new Date(dateTime).toISOString(),
+                    followUpDate: $('#appt-follow-up').value,
+                    notes: $('#appt-notes').value
+                };
+                if (id) await updateItem('appointments', id, data);
+                else await addItem('appointments', data);
+            });
+
+            $$('input[name="appointmentFor"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    if (e.target.value === 'customer') {
+                        $('#customer-select-container').classList.remove('hidden');
+                        $('#lead-select-container').classList.add('hidden');
+                        if ($('#appt-lead')) $('#appt-lead').value = '';
+                    } else {
+                        $('#customer-select-container').classList.add('hidden');
+                        $('#lead-select-container').classList.remove('hidden');
+                        if ($('#appt-customer')) $('#appt-customer').value = '';
+                    }
+                }
+            });
+        }
+
+        renderFunctions.settings = () => {
+            return `
+                <div class="mb-6"><h2 class="text-2xl font-semibold">Settings</h2></div>
+                <div class="bg-white p-6 rounded-lg shadow-md max-w-3xl mx-auto">
+                    <form id="settings-form">
+                        <div class="mb-6 border-b pb-4">
+                            <h3 class="text-lg font-medium">General</h3>
+                            <div class="mt-2"><label class="block font-medium">App Name</label><input type="text" id="setting-app-name" value="${appState.settings.appName}" class="w-full p-2 border rounded-md"></div>
+                            <div class="mt-2"><label class="block font-medium">Company Address</label><textarea id="setting-company-address" rows="3" class="w-full p-2 border rounded-md">${appState.settings.companyAddress || ''}</textarea></div>
+                        </div>
+                        <div class="mb-6 border-b pb-4">
+                            <h3 class="text-lg font-medium">Lead Management</h3>
+                             <div class="mt-2"><label class="block font-medium">Lead Stages (comma separated)</label><input type="text" id="setting-lead-stages" value="${(appState.settings.leadStages || []).join(', ')}" class="w-full p-2 border rounded-md"></div>
+                        </div>
+                        <div class="mb-6">
+                            <h3 class="text-lg font-medium">Integrations & Automation</h3>
+                            <div class="mt-2"><label class="block font-medium">WhatsApp API URL</label><input type="text" id="setting-wa-url" value="${appState.settings.whatsappApiUrl || ''}" class="w-full p-2 border rounded-md"></div>
+                            <div class="mt-2"><label class="block font-medium">WhatsApp API Key</label><input type="password" id="setting-wa-key" value="${appState.settings.whatsappApiKey || ''}" class="w-full p-2 border rounded-md"></div>
+                            <div class="mt-2"><label class="block font-medium">Renewal Message Template</label><textarea id="setting-wa-template" rows="3" class="w-full p-2 border rounded-md">${appState.settings.renewalMessageTemplate || ''}</textarea>
+                            <p class="text-xs text-slate-500">Use placeholders: {{customerName}}, {{subscriptionName}}, {{endDate}}</p></div>
+                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md">Save Settings</button>
+                    </form>
+                </div>`;
+        };
+        
+        function attachSettingsFormHandler() {
+            const form = $('#settings-form');
+            if (!form) return;
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const saveButton = form.querySelector('button[type="submit"]');
+                saveButton.disabled = true;
+                saveButton.textContent = 'Saving...';
+
+                try {
+                    const newSettings = {
+                        appName: $('#setting-app-name').value,
+                        companyAddress: $('#setting-company-address').value,
+                        leadStages: $('#setting-lead-stages').value.split(',').map(s => s.trim()).filter(Boolean),
+                        taskStatuses: ['To Do', 'In Progress', 'Done'],
+                        whatsappApiUrl: $('#setting-wa-url').value,
+                        whatsappApiKey: $('#setting-wa-key').value,
+                        renewalMessageTemplate: $('#setting-wa-template').value
+                    };
+                    await updateItem('settings', 'main', newSettings);
+                    appState.settings = { ...appState.settings, ...newSettings };
+                    $('#app-name-sidebar').textContent = newSettings.appName;
+                } catch (error) {
+                    console.error("Failed to save settings:", error);
+                    showToast("Failed to save settings.", true);
+                } finally {
+                    saveButton.disabled = false;
+                    saveButton.textContent = 'Save Settings';
+                }
+            };
+        }
+
+        function exportToXLS(data, filename) {
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+            XLSX.writeFile(workbook, `${filename}.xlsx`);
+        }
+        
+        function attachFilterHandlers() {
+            // Payouts page filters
+            const payoutEmployeeFilter = $('#payout-employee-filter');
+            if (payoutEmployeeFilter) payoutEmployeeFilter.onchange = (e) => { appState.filters.payouts_employee = e.target.value; render(); };
+            
+            const payoutServiceFilter = $('#payout-service-filter');
+            if (payoutServiceFilter) payoutServiceFilter.onchange = (e) => { appState.filters.payouts_service = e.target.value; render(); };
+            
+            const payoutSubscriptionFilter = $('#payout-subscription-filter');
+            if (payoutSubscriptionFilter) payoutSubscriptionFilter.onchange = (e) => { appState.filters.payouts_subscription = e.target.value; render(); };
+
+            const payoutDateFilter = $('#payout-date-filter');
+            if (payoutDateFilter) payoutDateFilter.onchange = (e) => {
+                appState.filters.payouts_dateRange = e.target.value;
+                $('#custom-date-range-inputs').classList.toggle('hidden', e.target.value !== 'custom');
+                render();
+            };
+            const payoutStartDate = $('#payout-start-date');
+            if(payoutStartDate) payoutStartDate.onchange = e => { appState.filters.payouts_startDate = e.target.value; render(); };
+            
+            const payoutEndDate = $('#payout-end-date');
+            if(payoutEndDate) payoutEndDate.onchange = e => { appState.filters.payouts_endDate = e.target.value; render(); };
+
+            // Generic search input filter
+            const input = $('#filter-input');
+            if (input) {
+                input.onkeyup = (e) => {
+                    appState.filters[e.target.dataset.view] = e.target.value;
+                    render();
+                };
+            }
+        }
+
+        // --- App Router & Initialization ---
+        const routes = {
+            'dashboard': renderFunctions.dashboard, 'services': renderFunctions.services,
+            'employees': renderFunctions.employees, 'leads': renderFunctions.leads,
+            'customers': renderFunctions.customers, 'payouts': renderFunctions.payouts,
+            'subscriptions': renderFunctions.subscriptions, 'invoices': renderFunctions.invoices,
+            'expenses': renderFunctions.expenses, 'tasks': renderFunctions.tasks, 
+            'appointments': renderFunctions.appointments, 'settings': renderFunctions.settings, 
+            'customer-detail': renderFunctions.customerDetail,
+        };
+
+        function render() {
+            const hash = window.location.hash.slice(1) || 'dashboard';
+            const [path, id] = hash.split('/');
+            appState.currentView = path;
+            const renderFunc = routes[path];
+            
+            if (renderFunc) {
+                $('#page-title').textContent = path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                $('#main-content').innerHTML = renderFunc(id);
+                lucide.createIcons();
+
+                if (path === 'leads') {
+                    if (appState.leadsView === 'kanban') setupKanbanDND();
+                    attachLeadViewHandlers();
+                }
+                if (path === 'customer-detail') handleCustomerDetailEvents(id);
+                if (path === 'settings') attachSettingsFormHandler();
+                attachFilterHandlers();
+                
+                $$('.nav-link').forEach(link => {
+                    link.classList.remove('bg-slate-700', 'text-white');
+                    const linkPath = link.href.split('#')[1] || '';
+                    if (linkPath === path || linkPath === path.split('/')[0]) {
+                        link.classList.add('bg-slate-700', 'text-white');
+                    }
+                });
+            } else {
+                 $('#main-content').innerHTML = '<p>Page not found.</p>';
+            }
+        }
+
+        function handleEvents(e) {
+            const target = e.target.closest('button, a');
+            if (!target) return;
+            const { id, dataset } = target;
+
+            // Service Events
+            if (id === 'add-service-btn') handleServiceForm();
+            if (target.classList.contains('edit-service-btn')) handleServiceForm(dataset.id);
+            if (target.classList.contains('delete-service-btn')) deleteItem('services', dataset.id, dataset.name);
+            if (id === 'export-services-btn') exportToXLS(appState.data.services, 'services');
+            
+            // Employee Events
+            if (id === 'add-employee-btn') handleEmployeeForm();
+            if (target.classList.contains('edit-employee-btn')) handleEmployeeForm(dataset.id);
+            if (target.classList.contains('delete-employee-btn')) deleteItem('employees', dataset.id, dataset.name);
+            if (id === 'export-employees-btn') exportToXLS(appState.data.employees, 'employees');
+            
+            // Lead Events
+            if (id === 'add-lead-btn') handleLeadForm();
+            if (target.classList.contains('edit-lead-btn')) handleLeadForm(dataset.id);
+            if (target.classList.contains('delete-lead-btn')) deleteItem('leads', dataset.id, dataset.name);
+            if (target.classList.contains('convert-lead-btn')) convertLeadToCustomer(dataset.id);
+            
+            // Customer Events
+            if (id === 'add-customer-btn') handleCustomerForm();
+            if (target.classList.contains('edit-customer-btn')) handleCustomerForm(dataset.id);
+            if (target.classList.contains('delete-customer-btn')) deleteItem('customers', dataset.id, dataset.name);
+            if (target.classList.contains('view-customer-btn')) window.location.hash = `#customer-detail/${dataset.id}`;
+            if (id === 'export-customers-btn') exportToXLS(appState.data.customers, 'customers');
+            
+            // Subscription Events
+            if (id === 'add-subscription-btn') handleSubscriptionForm();
+            if (target.classList.contains('edit-subscription-btn')) handleSubscriptionForm(dataset.id);
+            if (target.classList.contains('delete-subscription-btn')) deleteItem('subscriptions', dataset.id, dataset.name);
+            if (target.classList.contains('view-sub-customers-btn')) {
+                const subId = dataset.id;
+                const sub = appState.data.subscriptions.find(s => s.id === subId);
+                const customers = appState.data.customers.filter(c => c.subscriptions && c.subscriptions.some(s => s.subscriptionId === subId));
+                const customerList = customers.map(c => `<li>${c.name}</li>`).join('');
+                openModal(`Customers on ${sub.name} Plan`, `<ul class="list-disc pl-5">${customerList}</ul>`, 'sub-customer-list', e => e.preventDefault());
+            }
+
+            // Expense Events
+            if (id === 'add-expense-btn') handleExpenseForm();
+            if (target.classList.contains('edit-expense-btn')) handleExpenseForm(dataset.id);
+            if (target.classList.contains('delete-expense-btn')) deleteItem('expenses', dataset.id, dataset.name);
+            
+            // Task Events
+            if (id === 'add-task-btn') handleTaskForm();
+            if (target.classList.contains('edit-task-btn')) handleTaskForm(dataset.id);
+            if (target.classList.contains('delete-task-btn')) deleteItem('tasks', dataset.id, dataset.name);
+
+            // Appointment Events
+            if (id === 'add-appointment-btn') handleAppointmentForm();
+            if (target.classList.contains('edit-appointment-btn')) handleAppointmentForm(dataset.id);
+            if (target.classList.contains('delete-appointment-btn')) deleteItem('appointments', dataset.id, dataset.name);
+            
+            // Invoice Events
+            if (target.classList.contains('view-invoice-btn')) renderInvoicePreview(dataset.id);
+            if (target.classList.contains('delete-invoice-btn')) deleteItem('invoices', dataset.id, dataset.name);
+
+            // Notification Events
+            if (id === 'mark-all-read-btn') markAllNotificationsAsRead();
+            if (target.closest('.mark-as-read-btn')) markNotificationAsRead(target.closest('.mark-as-read-btn').dataset.id);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebase();
+            updateLiveClock();
+            window.addEventListener('hashchange', render);
+            document.body.addEventListener('click', handleEvents);
+
+            $('#menu-toggle-mobile').onclick = () => $('#sidebar').classList.toggle('open');
+            $('#notification-btn').onclick = () => $('#notification-panel').classList.toggle('hidden');
+            $$('.nav-link').forEach(link => { link.onclick = () => { if (window.innerWidth < 768) $('#sidebar').classList.remove('open'); }});
+
+            render();
+        });
+
+    </script>
+</body>
+</html>
