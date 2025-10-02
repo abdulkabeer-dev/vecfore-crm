@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vexfore CRM</title>
+    <link rel="icon" type="image/png" href="https://placehold.co/32x32/4f46e5/ffffff?text=V">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
+    
     <style>
         /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -79,7 +81,7 @@
         <div class="flex items-center justify-between px-4 h-16 border-b border-slate-700 flex-shrink-0">
             <div id="sidebar-header-text" class="flex items-center overflow-hidden">
                 <i data-lucide="shield-half" class="mr-2 text-indigo-400 flex-shrink-0"></i>
-                <h2 id="app-name-sidebar" class="text-xl font-bold whitespace-normal break-words">Admin CRM</h2>
+                <h2 id="app-name-sidebar" class="text-xl font-bold whitespace-normal break-words">Vexfore CRM</h2>
             </div>
         </div>
         <nav class="flex-grow overflow-y-auto overflow-x-hidden py-4">
@@ -133,7 +135,7 @@
         </main>
 
         <footer class="bg-white text-center text-sm text-slate-500 p-3 border-t">
-            Powered by First Step Digital Agency. All rights reserved.
+            Powered by Vexfore. All rights reserved.
         </footer>
     </div>
 
@@ -160,7 +162,7 @@
             leadsView: 'kanban', // 'kanban', 'table', 'cards'
             filters: {},
             settings: {
-                appName: 'Admin CRM',
+                appName: 'Vexfore CRM',
                 companyAddress: 'Your Company Address\n123 Business Rd.\nBusinesstown, 12345',
                 leadStages: ['New', 'Hot', 'Cold', 'Contacted', 'Qualified'],
                 taskStatuses: ['To Do', 'In Progress', 'Done'],
@@ -177,18 +179,18 @@
         };
         
         // --- Firebase Initialization ---
-        const appId = 'vexfore-crm'; // Using your projectId as the unique app ID
+        const appId = 'vexfore-crm';
         
-        // Your web app's Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyBM23Q1vXzOxO8zrPCoHOEFSu4bB5zQyjo",
           authDomain: "vexfore-crm.firebaseapp.com",
           projectId: "vexfore-crm",
-          storageBucket: "vexfore-crm.firebasestorage.app",
+          storageBucket: "vexfore-crm.appspot.com",
           messagingSenderId: "733421939557",
           appId: "1:733421939557:web:bf07a1903bbc9d704e4f8c",
           measurementId: "G-SKD7Q7PNDG"
         };
+
 
         async function initializeFirebase() {
             if (!firebaseConfig || !firebaseConfig.apiKey) {
@@ -862,7 +864,7 @@
                                  `).join('') : `<tr><td colspan="4" class="text-center p-4 text-slate-500">No services found.</td></tr>`}
                              </tbody>
                          </table>
-                    </div>
+                     </div>
                 </div>
             `;
         };
@@ -914,7 +916,7 @@
                                  `).join('') : `<tr><td colspan="5" class="text-center p-4 text-slate-500">No employees found.</td></tr>`}
                              </tbody>
                          </table>
-                    </div>
+                     </div>
                 </div>
             `;
         };
@@ -1109,16 +1111,16 @@
                                  }).join('') || `<tr><td colspan="4" class="text-center p-4 text-slate-500">No customers found.</td></tr>`}
                              </tbody>
                          </table>
-                    </div>
+                     </div>
                 </div>`;
         };
         
         function handleCustomerForm(id = null) {
             const customer = id ? appState.data.customers.find(c => c.id === id) : {};
               const formContent = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                       <div><label>Name</label><input type="text" id="customer-name" value="${customer.name || ''}" required></div>
-                                       <div><label>Phone</label><input type="tel" id="customer-phone" value="${customer.phone || ''}" required></div>
-                                       <div><label>Email</label><input type="email" id="customer-email" value="${customer.email || ''}"></div>
+                                         <div><label>Name</label><input type="text" id="customer-name" value="${customer.name || ''}" required></div>
+                                         <div><label>Phone</label><input type="tel" id="customer-phone" value="${customer.phone || ''}" required></div>
+                                         <div><label>Email</label><input type="email" id="customer-email" value="${customer.email || ''}"></div>
                                    </div>`.replaceAll('<label>', '<label class="block text-sm font-medium text-slate-700">').replaceAll('<input', '<input class="mt-1 block w-full p-2 border rounded-md shadow-sm"');
               openModal(id ? 'Edit Customer' : 'Add Customer', formContent, 'customer-form', async () => {
                 const data = { name: $('#customer-name').value, phone: $('#customer-phone').value, email: $('#customer-email').value };
@@ -1162,8 +1164,8 @@
                                         <div class="border rounded-lg p-4">
                                             <div class="flex justify-between items-start">
                                                 <div>
-                                                     <p class="font-bold text-lg">${serviceInfo?.name || 'Unknown'}</p>
-                                                     <p class="text-sm text-slate-600">Handled by: ${employeeInfo?.name || 'N/A'}</p>
+                                                    <p class="font-bold text-lg">${serviceInfo?.name || 'Unknown'}</p>
+                                                    <p class="text-sm text-slate-600">Handled by: ${employeeInfo?.name || 'N/A'}</p>
                                                 </div>
                                                 <div>
                                                     <button class="remove-assigned-service-btn text-red-500 hover:text-red-700 text-sm" data-customer-id="${id}" data-service-index="${index}">Remove</button>
@@ -1191,11 +1193,14 @@
                                 const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
                                 const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
                                 const subBalance = (sub.price || 0) - subPaid;
+                                const isExpired = new Date(sub.endDate) < new Date();
                                 return `
-                                    <div class="border rounded-lg p-4">
+                                    <div class="border rounded-lg p-4 ${isExpired ? 'bg-red-50' : ''}">
                                         <div class="flex justify-between items-start">
                                             <div>
-                                                <p class="font-bold">${subInfo?.name || 'N/A'}</p>
+                                                <p class="font-bold flex items-center">${subInfo?.name || 'N/A'}
+                                                ${isExpired ? '<span class="ml-2 text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">EXPIRED</span>' : ''}
+                                                </p>
                                                 <p class="text-sm text-slate-500">Active from ${formatDate(sub.startDate)} to ${formatDate(sub.endDate)}</p>
                                             </div>
                                             <button class="remove-subscription-btn text-red-500 hover:text-red-700 text-sm" data-customer-id="${customer.id}" data-subscription-index="${index}" data-name="${subInfo?.name}">Remove</button>
@@ -1205,8 +1210,9 @@
                                             <div><p>Paid</p><p class="font-semibold text-green-600">${formatCurrency(subPaid)}</p></div>
                                             <div><p>Balance</p><p class="font-semibold text-red-600">${formatCurrency(subBalance)}</p></div>
                                         </div>
-                                        <div class="mt-2 flex justify-end gap-2">
-                                            ${subBalance > 0 ? `<button class="add-subscription-payment-btn" data-customer-id="${customer.id}" data-subscription-index="${index}" class="bg-green-100 text-green-700 px-3 py-1 rounded-md text-sm">+ Add Payment</button>` : ''}
+                                        <div class="mt-2 flex justify-end items-center gap-4">
+                                            ${subBalance > 0 ? `<button class="add-subscription-payment-btn text-blue-600 hover:underline font-medium text-sm" data-customer-id="${customer.id}" data-subscription-index="${index}">+ Add Payment</button>` : ''}
+                                            <button class="renew-subscription-btn bg-blue-100 text-blue-700 px-3 py-1 rounded-md text-sm font-semibold" data-customer-id="${customer.id}" data-subscription-index="${index}">Renew</button>
                                         </div>
                                     </div>`;
                             }).join('') : `<p class="text-slate-500 mb-4">No active subscriptions.</p>`}
@@ -1262,6 +1268,10 @@
                         await updateItem('customers', customerId, { subscriptions: updatedSubscriptions });
                     });
                 }
+            });
+            
+            $$('.renew-subscription-btn').forEach(btn => {
+                btn.onclick = () => handleRenewSubscriptionForm(customerId, parseInt(btn.dataset.subscriptionIndex));
             });
         }
         
@@ -1540,52 +1550,117 @@
                                  `).join('') || `<tr><td colspan="6" class="text-center p-4">No data found for the selected filters.</td></tr>`}
                              </tbody>
                          </table>
-                    </div>
+                     </div>
                 </div>`;
         }
         
         renderFunctions.subscriptions = () => {
-              return `
+            // Data preperation
+            const allSubscriptions = appState.data.customers.flatMap(c => 
+                (c.subscriptions || []).map(sub => ({
+                    ...sub,
+                    customerName: c.name,
+                    customerId: c.id
+                }))
+            );
+
+            // Filtering
+            const planFilter = appState.filters.subs_plan || '';
+            const dateRangeFilter = appState.filters.subs_dateRange || 'all';
+            const renewedFilter = appState.filters.subs_renewed || false;
+
+            const dateFilterFn = (itemDateStr) => {
+                if (dateRangeFilter === 'all') return true;
+                const itemDate = new Date(itemDateStr);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+
+                if (dateRangeFilter === 'today') {
+                    return itemDate.toDateString() === today.toDateString();
+                } else if (dateRangeFilter === 'week') {
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    return itemDate >= startOfWeek;
+                } else if (dateRangeFilter === 'month') {
+                    return itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+                } else if (dateRangeFilter === 'year') {
+                    return itemDate.getFullYear() === today.getFullYear();
+                }
+                return true;
+            };
+
+            const filteredData = allSubscriptions.filter(sub => {
+                const planMatch = !planFilter || sub.subscriptionId === planFilter;
+                const renewedMatch = !renewedFilter || (sub.renewalHistory && sub.renewalHistory.length > 0);
+                const dateMatch = dateFilterFn(sub.startDate);
+                return planMatch && renewedMatch && dateMatch;
+            });
+            
+            return `
                 <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-                    <h2 class="text-2xl font-semibold">Manage Subscription Plans</h2>
-                    <button id="add-subscription-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Plan</button>
+                    <h2 class="text-2xl font-semibold">Subscription Analysis</h2>
+                    <a href="#customers" id="add-subscription-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add/Manage Plans</a>
                 </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium">Filter by Plan</label>
+                            <select id="sub-filter-plan" class="w-full p-2 border rounded-md mt-1">
+                                <option value="">All Plans</option>
+                                ${appState.data.subscriptions.map(s => `<option value="${s.id}" ${planFilter === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Filter by Date Sold</label>
+                            <select id="sub-filter-date-range" class="w-full p-2 border rounded-md mt-1">
+                                <option value="all" ${dateRangeFilter === 'all' ? 'selected' : ''}>All Time</option>
+                                <option value="today" ${dateRangeFilter === 'today' ? 'selected' : ''}>Today</option>
+                                <option value="week" ${dateRangeFilter === 'week' ? 'selected' : ''}>This Week</option>
+                                <option value="month" ${dateRangeFilter === 'month' ? 'selected' : ''}>This Month</option>
+                                <option value="year" ${dateRangeFilter === 'year' ? 'selected' : ''}>This Year</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                             <label class="flex items-center cursor-pointer">
+                                 <input type="checkbox" id="sub-filter-renewed" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" ${renewedFilter ? 'checked' : ''}>
+                                 <span class="ml-2 text-sm text-gray-700">Show only renewed</span>
+                               </label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-lg shadow-md">
+                     <h3 class="text-lg font-semibold mb-4">Total Subscriptions Sold: <span class="text-blue-600">${filteredData.length}</span></h3>
                      <div class="overflow-x-auto">
                          <table class="w-full text-left">
                              <thead>
                                  <tr class="border-b bg-slate-50">
+                                     <th class="p-3">Customer</th>
                                      <th class="p-3">Plan</th>
-                                     <th class="p-3">Prices</th>
-                                     <th class="p-3">Active Count</th>
-                                     <th class="p-3 text-right">Actions</th>
+                                     <th class="p-3">Start Date</th>
+                                     <th class="p-3">End Date</th>
+                                     <th class="p-3">Price</th>
+                                     <th class="p-3">Status</th>
                                  </tr>
                             </thead>
                              <tbody>
-                                 ${appState.data.subscriptions.map(sub => {
-                                     const activeCustomers = appState.data.customers.filter(c => c.subscriptions && c.subscriptions.some(s => s.subscriptionId === sub.id));
+                                 ${filteredData.map(sub => {
+                                     const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
+                                     const isRenewed = sub.renewalHistory && sub.renewalHistory.length > 0;
                                      return `
                                      <tr class="border-b hover:bg-slate-50">
-                                         <td class="p-3">${sub.name}</td>
-                                         <td class="p-3 text-xs">
-                                             <div>1M: ${formatCurrency(sub.monthlyPrice)}</div>
-                                             <div>3M: ${formatCurrency(sub.quarterlyPrice)}</div>
-                                             <div>6M: ${formatCurrency(sub.sixMonthPrice)}</div>
-                                             <div>12M: ${formatCurrency(sub.yearlyPrice)}</div>
-                                         </td>
-                                         <td class="p-3">
-                                             <span class="font-bold text-lg">${activeCustomers.length}</span>
-                                             ${activeCustomers.length > 0 ? `<button class="view-sub-customers-btn text-blue-600 text-sm ml-2" data-id="${sub.id}">View</button>` : ''}
-                                         </td>
-                                         <td class="p-3 text-right">
-                                             <button class="edit-subscription-btn text-blue-600 mr-2" data-id="${sub.id}">Edit</button>
-                                             <button class="delete-subscription-btn text-red-600" data-id="${sub.id}" data-name="${sub.name}">Delete</button>
-                                         </td>
+                                         <td class="p-3"><a href="#customer-detail/${sub.customerId}" class="text-blue-600 hover:underline">${sub.customerName}</a></td>
+                                         <td class="p-3">${subInfo?.name || 'N/A'}</td>
+                                         <td class="p-3">${formatDate(sub.startDate)}</td>
+                                         <td class="p-3">${formatDate(sub.endDate)}</td>
+                                         <td class="p-3">${formatCurrency(sub.price)}</td>
+                                         <td class="p-3">${isRenewed ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Renewed</span>' : '<span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">New</span>'}</td>
                                      </tr>
-                                 `}).join('') || `<tr><td colspan="4" class="text-center p-4">No subscription plans found.</td></tr>`}
+                                `}).join('') || `<tr><td colspan="6" class="text-center p-4 text-slate-500">No subscriptions match the filters.</td></tr>`}
                              </tbody>
                          </table>
-                    </div>
+                     </div>
                 </div>`;
         };
         
@@ -1679,6 +1754,91 @@
             updatePrice(); // Initial call
         }
 
+        function handleRenewSubscriptionForm(customerId, subscriptionIndex) {
+            const customer = appState.data.customers.find(c => c.id === customerId);
+            const sub = customer.subscriptions[subscriptionIndex];
+            const subInfo = appState.data.subscriptions.find(s => s.id === sub.subscriptionId);
+            
+            // Set the start date to the day after the old end date
+            const oldEndDate = new Date(sub.endDate);
+            const newStartDate = new Date(oldEndDate);
+            newStartDate.setDate(newStartDate.getDate() + 1);
+
+            const formContent = `
+                <div class="mb-4 p-3 bg-slate-100 rounded-md">
+                    <p class="font-semibold">Renewing: ${subInfo.name}</p>
+                    <p class="text-sm">Current expiry: ${formatDate(sub.endDate)}</p>
+                </div>
+                <div><label>New Start Date</label><input type="date" id="renew-sub-start" value="${newStartDate.toISOString().split('T')[0]}" disabled class="bg-slate-200"></div>
+                <div><label>Renewal Duration</label><select id="renew-sub-duration" required>
+                    <option value="1">1 Month</option>
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="12" selected>12 Months</option>
+                </select></div>
+                <div id="subscription-price-display" class="mt-4 font-semibold"></div>
+                <div><label>Amount Paid Now</label><input type="number" id="renew-sub-paid" value="0"></div>
+            `.replaceAll('<div>', '<div class="mb-4">').replaceAll('<label>', '<label class="block text-sm font-medium">').replaceAll('<input', '<input class="w-full p-2 border rounded-md mt-1"').replaceAll('<select', '<select class="w-full p-2 border rounded-md mt-1"');
+
+            openModal(`Renew Subscription for ${customer.name}`, formContent, 'renew-sub-form', async () => {
+                const duration = parseInt($('#renew-sub-duration').value);
+                
+                const newEndDate = new Date(newStartDate);
+                newEndDate.setMonth(newEndDate.getMonth() + duration);
+
+                let price = 0;
+                if (duration === 1) price = subInfo.monthlyPrice;
+                else if (duration === 3) price = subInfo.quarterlyPrice;
+                else if (duration === 6) price = subInfo.sixMonthPrice;
+                else if (duration === 12) price = subInfo.yearlyPrice;
+
+                const amountPaid = parseFloat($('#renew-sub-paid').value) || 0;
+                const newPayment = { amount: amountPaid, date: new Date().toISOString(), notes: 'Renewal payment' };
+
+                const renewalEntry = {
+                    renewedOn: new Date().toISOString(),
+                    previousEndDate: sub.endDate,
+                    newEndDate: newEndDate.toISOString(),
+                    durationMonths: duration
+                };
+                
+                // Deep copy to avoid mutation issues
+                const updatedSubscriptions = JSON.parse(JSON.stringify(customer.subscriptions));
+                const subToUpdate = updatedSubscriptions[subscriptionIndex];
+                
+                subToUpdate.startDate = newStartDate.toISOString();
+                subToUpdate.endDate = newEndDate.toISOString();
+                subToUpdate.price = price;
+                
+                // Reset payments for the new subscription period
+                subToUpdate.payments = []; 
+                if(amountPaid > 0) {
+                    subToUpdate.payments.push(newPayment);
+                }
+
+                if (!subToUpdate.renewalHistory) subToUpdate.renewalHistory = [];
+                subToUpdate.renewalHistory.push(renewalEntry);
+
+                await updateItem('customers', customerId, { subscriptions: updatedSubscriptions });
+                showToast("Subscription renewed successfully!");
+            });
+
+            const updatePrice = () => {
+                const duration = parseInt($('#renew-sub-duration').value);
+                let price = 0;
+                if (duration === 1) price = subInfo.monthlyPrice;
+                else if (duration === 3) price = subInfo.quarterlyPrice;
+                else if (duration === 6) price = subInfo.sixMonthPrice;
+                else if (duration === 12) price = subInfo.yearlyPrice;
+                $('#subscription-price-display').textContent = `Renewal Price: ${formatCurrency(price)}`;
+                $('#renew-sub-paid').value = price;
+            };
+
+            $('#renew-sub-duration').onchange = updatePrice;
+            updatePrice(); // Initial call
+        }
+
+
         function handleAddSubscriptionPaymentForm(customerId, subscriptionIndex) {
             const customer = appState.data.customers.find(c => c.id === customerId);
             const sub = customer.subscriptions[subscriptionIndex];
@@ -1707,37 +1867,37 @@
 
         renderFunctions.invoices = () => {
              const filterText = (appState.filters.invoices || '').toLowerCase();
-                const filteredData = appState.data.invoices.filter(item => {
-                    const customer = appState.data.customers.find(c => c.id === item.customerId);
-                    return (customer && customer.name.toLowerCase().includes(filterText)) || (item.invoiceNumber && item.invoiceNumber.toLowerCase().includes(filterText));
-                });
+               const filteredData = appState.data.invoices.filter(item => {
+                   const customer = appState.data.customers.find(c => c.id === item.customerId);
+                   return (customer && customer.name.toLowerCase().includes(filterText)) || (item.invoiceNumber && item.invoiceNumber.toLowerCase().includes(filterText));
+               });
 
                  return `
                  <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                      <h2 class="text-2xl font-semibold">Invoices & Quotes</h2>
-                 </div>
+                </div>
                  <div class="mb-4"><input type="text" id="filter-input" data-view="invoices" placeholder="Search by customer or invoice #" class="w-full p-2 border rounded-md" value="${appState.filters.invoices || ''}"></div>
                  <div class="bg-white p-6 rounded-lg shadow-md">
-                      <div class="overflow-x-auto">
-                          <table class="w-full text-left">
-                              <thead><tr class="border-b bg-slate-50"><th class="p-3">#</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
-                              <tbody>${filteredData.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(inv => {
-                                  let statusColor = 'bg-red-100 text-red-700';
-                                  if (inv.status === 'Paid') statusColor = 'bg-green-100 text-green-700';
-                                  if (inv.status === 'Partially Paid') statusColor = 'bg-yellow-100 text-yellow-700';
-                                  return `
-                                 <tr class="border-b hover:bg-slate-50">
-                                     <td class="p-3">${inv.invoiceNumber}</td>
-                                     <td>${appState.data.customers.find(c => c.id === inv.customerId)?.name || 'N/A'}</td>
-                                     <td>${formatDate(inv.date)}</td><td>${formatCurrency(inv.totalAmount)}</td>
-                                     <td><span class="px-2 py-1 text-xs rounded-full ${statusColor}">${inv.status}</span></td>
-                                     <td class="text-right">
-                                         <button class="view-invoice-btn text-blue-600" data-id="${inv.id}">View/Manage</button>
-                                         <button class="delete-invoice-btn text-red-600 ml-2" data-id="${inv.id}" data-name="${inv.invoiceNumber}">Delete</button>
-                                     </td>
-                                 </tr>`}).join('') || `<tr><td colspan="6" class="text-center p-4">No invoices found.</td></tr>`}</tbody>
-                          </table>
-                     </div>
+                       <div class="overflow-x-auto">
+                           <table class="w-full text-left">
+                               <thead><tr class="border-b bg-slate-50"><th class="p-3">#</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+                               <tbody>${filteredData.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(inv => {
+                                   let statusColor = 'bg-red-100 text-red-700';
+                                   if (inv.status === 'Paid') statusColor = 'bg-green-100 text-green-700';
+                                   if (inv.status === 'Partially Paid') statusColor = 'bg-yellow-100 text-yellow-700';
+                                   return `
+                                  <tr class="border-b hover:bg-slate-50">
+                                       <td class="p-3">${inv.invoiceNumber}</td>
+                                       <td>${appState.data.customers.find(c => c.id === inv.customerId)?.name || 'N/A'}</td>
+                                       <td>${formatDate(inv.date)}</td><td>${formatCurrency(inv.totalAmount)}</td>
+                                       <td><span class="px-2 py-1 text-xs rounded-full ${statusColor}">${inv.status}</span></td>
+                                       <td class="text-right">
+                                           <button class="view-invoice-btn text-blue-600" data-id="${inv.id}">View/Manage</button>
+                                           <button class="delete-invoice-btn text-red-600 ml-2" data-id="${inv.id}" data-name="${inv.invoiceNumber}">Delete</button>
+                                       </td>
+                                  </tr>`}).join('') || `<tr><td colspan="6" class="text-center p-4">No invoices found.</td></tr>`}</tbody>
+                           </table>
+                       </div>
                  </div>`;
         };
 
@@ -1782,12 +1942,12 @@
 
             (customer.subscriptions || []).forEach((sub, index) => {
                  if (sub.price) {
-                     const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
-                     const subBalance = (sub.price || 0) - subPaid;
-                     if (subBalance > 0.01) {
-                         const subInfo = appState.data.subscriptions.find(s=>s.id===sub.subscriptionId);
-                         billableItems.push({ sourceType: 'subscription', sourceIndex: index, description: `Subscription: ${subInfo?.name || 'N/A'}`, totalCost: sub.price || 0, paid: subPaid, balance: subBalance });
-                     }
+                      const subPaid = (sub.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                      const subBalance = (sub.price || 0) - subPaid;
+                      if (subBalance > 0.01) {
+                          const subInfo = appState.data.subscriptions.find(s=>s.id===sub.subscriptionId);
+                          billableItems.push({ sourceType: 'subscription', sourceIndex: index, description: `Subscription: ${subInfo?.name || 'N/A'}`, totalCost: sub.price || 0, paid: subPaid, balance: subBalance });
+                      }
                  }
             });
 
@@ -1923,15 +2083,15 @@
             $('#invoice-preview-form').parentElement.nextElementSibling.style.display = 'none';
 
             $('#invoice-action-pdf').onclick = () => {
-                 const { jsPDF } = window.jspdf;
-                 html2canvas($('#invoice-print-area')).then(canvas => {
-                     const imgData = canvas.toDataURL('image/png');
-                     const pdf = new jsPDF('p', 'mm', 'a4');
-                     const pdfWidth = pdf.internal.pageSize.getWidth();
-                     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                     pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
-                 });
+                const { jsPDF } = window.jspdf;
+                html2canvas($('#invoice-print-area')).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
+                });
             };
 
             $('#invoice-action-whatsapp').onclick = () => {
@@ -2453,6 +2613,16 @@
             const payoutEndDate = $('#payout-end-date');
             if(payoutEndDate) payoutEndDate.onchange = e => { appState.filters.payouts_endDate = e.target.value; render(); };
 
+            // Subscription Analysis filters
+            const subPlanFilter = $('#sub-filter-plan');
+            if(subPlanFilter) subPlanFilter.onchange = e => { appState.filters.subs_plan = e.target.value; render(); };
+
+            const subDateRangeFilter = $('#sub-filter-date-range');
+            if(subDateRangeFilter) subDateRangeFilter.onchange = e => { appState.filters.subs_dateRange = e.target.value; render(); };
+
+            const subRenewedFilter = $('#sub-filter-renewed');
+            if(subRenewedFilter) subRenewedFilter.onchange = e => { appState.filters.subs_renewed = e.target.checked; render(); };
+
             // Generic search input filter
             const input = $('#filter-input');
             if (input) {
@@ -2587,3 +2757,5 @@
     </script>
 </body>
 </html>
+
+
